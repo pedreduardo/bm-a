@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>BM&A · Importador de Inadimplentes</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#07090F;--surface:#0D1117;--surfaceAlt:#111827;
+    --border:#1C2333;--accent:#D4A853;
+    --text:#E2D9CC;--muted:#6B7A94;--faint:#3A4558;
+    --success:#4ADE80;--successDim:rgba(74,222,128,0.10);
+    --danger:#F87171;--dangerDim:rgba(248,113,113,0.10);
+  }
+  body{background:var(--bg);color:var(--text);font-family:monospace;padding:36px 20px;min-height:100vh}
+  ::-webkit-scrollbar{width:4px;height:4px}
+  ::-webkit-scrollbar-track{background:var(--bg)}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+  h1{font-size:20px;font-weight:500}
+  input[type=file]{display:none}
+  button{cursor:pointer;font-family:monospace}
+  table{border-collapse:collapse;width:100%}
+  th,td{text-align:left;padding:6px 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px;font-size:11px}
+  a{color:var(--accent);text-decoration:none}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+  .fade{animation:fadeIn .3s ease}
+  .spinner{width:44px;height:44px;border:3px solid var(--border);border-top:3px solid var(--accent);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 18px}
+  .section-wrap{margin-bottom:22px}
+  .section-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .section-label{font-size:10px;color:var(--faint);font-weight:700;letter-spacing:.1em}
+  .section-hr{flex:1;height:1px;background:var(--border)}
+  .section-title{font-size:11px;color:var(--muted)}
+  .section-body{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px}
+  .stat-card{flex:1;min-width:90px;padding:12px 14px;background:var(--surface);border-radius:10px;border:1px solid var(--border)}
+  .stat-val{font-size:24px;font-weight:800;line-height:1}
+  .stat-label{font-size:10px;color:var(--muted);margin-top:4px;text-transform:uppercase;letter-spacing:.1em}
+  .stats-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+  .btn-primary{padding:13px;border:none;border-radius:10px;font-size:14px;font-weight:700;letter-spacing:.04em;width:100%;background:linear-gradient(135deg,var(--accent),#C49A3C);color:var(--bg)}
+  .btn-success{padding:13px;border:none;border-radius:10px;font-size:14px;font-weight:700;background:linear-gradient(135deg,var(--success),#36B86A);color:var(--bg)}
+  .btn-ghost{padding:13px 16px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:10px;font-size:12px}
+  .btn-neutral{width:100%;padding:12px;background:var(--surfaceAlt);color:var(--text);border:1px solid var(--border);border-radius:10px;font-size:13px}
+  .tier-btn{padding:8px 20px;border:none;border-radius:6px;font-weight:700;font-size:13px;font-family:monospace;background:var(--surfaceAlt);color:var(--muted)}
+  .tier-btn.active{background:var(--accent);color:var(--bg);box-shadow:0 0 16px rgba(212,168,83,.27)}
+  .drop-zone{border:1.5px dashed var(--border);border-radius:12px;padding:28px 20px;text-align:center;cursor:pointer;position:relative;overflow:hidden;transition:border-color .2s}
+  .drop-zone.loaded{border-color:var(--accent)}
+  .drop-zone-bar{position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),transparent)}
+  .progress-track{height:3px;background:var(--border);border-radius:4px;max-width:320px;margin:0 auto}
+  .progress-fill{height:100%;border-radius:4px;background:var(--accent);transition:width .3s}
+  .result-row{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;margin-bottom:5px}
+  .result-ok{background:var(--successDim);border:1px solid rgba(74,222,128,.13)}
+  .result-err{background:var(--dangerDim);border:1px solid rgba(248,113,113,.13)}
+  .result-pending{background:var(--surfaceAlt);animation:pulse 1s infinite;font-size:12px;color:var(--muted)}
+  .error-box{padding:10px 14px;background:var(--dangerDim);border:1px solid rgba(248,113,113,.2);border-radius:8px;font-size:12px;color:var(--danger);margin-bottom:16px}
+  .info-box{padding:10px 14px;background:rgba(212,168,83,0.08);border:1px solid rgba(212,168,83,.2);border-radius:8px;font-size:12px;color:var(--accent);margin-bottom:16px;line-height:1.6}
+  #app{max-width:820px;margin:0 auto}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+<div id="app">
+  <div style="margin-bottom:28px;border-bottom:1px solid var(--border);padding-bottom:18px">
+    <div style="font-size:10px;color:var(--accent);letter-spacing:.25em;text-transform:uppercase;margin-bottom:6px">BM&A · Recuperação de Crédito</div>
+    <h1>Importador de Inadimplentes</h1>
+    <p style="font-size:11px;color:var(--muted);margin-top:4px">API ClickUp · Comparação local · Importação direta</p>
+  </div>
+
+  <div id="error-box" class="error-box hidden"></div>
+
+  <!-- SETUP -->
+  <div id="step-setup" class="fade">
+    <div class="section-wrap">
+      <div class="section-head"><span class="section-label">01</span><div class="section-hr"></div><span class="section-title">Tier</span><div style="width:16px;height:1px;background:var(--border)"></div></div>
+      <div class="section-body">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="tier-btn" onclick="selectTier('AB',this)">AB</button>
+          <button class="tier-btn" onclick="selectTier('C',this)">C</button>
+          <button class="tier-btn" onclick="selectTier('D',this)">D</button>
+          <button class="tier-btn" onclick="selectTier('TODOS',this)">TODOS</button>
+        </div>
+      </div>
+    </div>
+    <div class="section-wrap">
+      <div class="section-head"><span class="section-label">02</span><div class="section-hr"></div><span class="section-title">Planilha Datatako</span><div style="width:16px;height:1px;background:var(--border)"></div></div>
+      <div class="section-body">
+        <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()"
+          ondragover="event.preventDefault()" ondrop="onDrop(event)">
+          <div id="drop-bar" class="drop-zone-bar hidden"></div>
+          <input type="file" id="file-input" accept=".xlsx,.xls,.csv" onchange="onFileChange(event)"/>
+          <div id="drop-icon" style="font-size:26px;margin-bottom:8px">📂</div>
+          <div id="drop-label" style="font-size:13px;font-weight:600;color:var(--muted)">Arraste ou clique — .xlsx · .xls · .csv</div>
+          <div id="drop-cols" style="font-size:10px;color:var(--muted);margin-top:4px"></div>
+        </div>
+      </div>
+    </div>
+    <button class="btn-primary hidden" id="btn-analyze" onclick="runAnalysis()">Analisar — buscar ClickUp e comparar</button>
+  </div>
+
+  <!-- ANALYZING -->
+  <div id="step-analyzing" class="hidden" style="text-align:center;padding:40px 0">
+    <div class="spinner"></div>
+    <div id="progress-label" style="font-size:13px;color:var(--text);margin-bottom:8px"></div>
+    <div id="progress-sub" style="font-size:10px;color:var(--muted);margin-bottom:12px"></div>
+    <div class="progress-track"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+  </div>
+
+  <!-- PREVIEW -->
+  <div id="step-preview" class="hidden fade">
+    <div class="section-wrap">
+      <div class="section-head"><span class="section-label">03</span><div class="section-hr"></div><span class="section-title">Resultado da análise</span><div style="width:16px;height:1px;background:var(--border)"></div></div>
+      <div class="section-body">
+        <div class="stats-row" id="preview-stats"></div>
+        <div id="ck-debug" class="info-box hidden"></div>
+        <div id="preview-empty" class="hidden" style="padding:18px;text-align:center;color:var(--muted);font-size:13px;background:var(--surfaceAlt);border-radius:8px">✓ Todos os registros já existem no ClickUp.</div>
+        <div id="preview-table-wrap" class="hidden">
+          <div style="overflow-x:auto;border-radius:8px;border:1px solid var(--border);margin-bottom:16px">
+            <table><thead id="preview-thead"></thead><tbody id="preview-tbody"></tbody></table>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn-success" id="btn-import" onclick="runImport()" style="flex:1"></button>
+            <button class="btn-ghost" onclick="reset()">Cancelar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DONE -->
+  <div id="step-done" class="hidden fade">
+    <div class="section-wrap">
+      <div class="section-head"><span class="section-label">04</span><div class="section-hr"></div><span class="section-title" id="done-title">Importando...</span><div style="width:16px;height:1px;background:var(--border)"></div></div>
+      <div class="section-body">
+        <div class="stats-row hidden" id="done-stats"></div>
+        <div id="results-list" style="max-height:400px;overflow-y:auto"></div>
+        <button class="btn-neutral hidden" id="btn-new" onclick="reset()" style="margin-top:12px">Nova importação</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const TOKEN = "pk_60977371_UNE7JWRJS39YHBY0QYMQWXBSYUZSVWR3";
+const LISTS = { AB:"901326680340", C:"901326680111", D:"901326670793" };
+const CF = {
+  parcela:   "59627cf4-fa88-42bd-9d28-cba33bca3dd4",
+  credor:    "03373f9b-8105-42a5-84a9-609655914957",
+  vencimento:"b52e560c-2ade-4a63-820c-f4487aa77907",
+  anoMes:    "87220fba-ae2d-4d2f-bcba-7eebb7c4242b",
+  valor:     "0ee1d91b-0c55-45c8-90da-3348bfdbc5d0",
+};
+
+let TIER="", SHEET_ROWS=null, NEW_ROWS=[];
+
+function norm(v){
+  if(!v) return "";
+  return String(v).normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    .trim().toLowerCase().replace(/[.\-\/\s'"`,;:()]/g,"");
+}
+function makeKey(d,c,a){ return `${norm(d)}|${norm(c)}|${norm(a)}`; }
+function colGet(row,...names){
+  for(const n of names){
+    const k=Object.keys(row).find(k=>k.toLowerCase().trim()===n.toLowerCase());
+    if(k!==undefined&&row[k]!==""&&row[k]!=null) return row[k];
+  }
+  return "";
+}
+function serialToDate(s){
+  const d=new Date(new Date(1899,11,30).getTime()+Math.round(s)*86400000);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+function toTimestamp(v){
+  if(!v) return null;
+  const s=String(v).trim();
+  let iso=null;
+  if(/^\d{4}-\d{2}-\d{2}/.test(s)) iso=s.slice(0,10);
+  else{
+    const m=s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+    if(m){let[,d,mo,y]=m;if(y.length===2)y="20"+y;iso=`${y}-${mo.padStart(2,"0")}-${d.padStart(2,"0")}`;}
+  }
+  if(!iso) return null;
+  const ts=new Date(iso+"T00:00:00.000Z").getTime();
+  return isNaN(ts)?null:ts;
+}
+function fmtBRL(v){
+  const n=parseFloat(v);
+  return isNaN(n)?String(v||"—"):n.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+}
+function tierMap(v){
+  const n=norm(v);
+  if(/^(tiera|a|tierb|b|tierab|ab)$/.test(n)) return "AB";
+  if(/^(tierc|c)$/.test(n)) return "C";
+  if(/^(tierd|d)$/.test(n)) return "D";
+  return null;
+}
+function showError(msg){const el=document.getElementById("error-box");el.textContent="⚠ "+msg;el.classList.remove("hidden");}
+function clearError(){document.getElementById("error-box").classList.add("hidden");}
+function show(id){document.getElementById(id).classList.remove("hidden");}
+function hide(id){document.getElementById(id).classList.add("hidden");}
+function setProgress(pct,label,sub){
+  document.getElementById("progress-fill").style.width=pct+"%";
+  document.getElementById("progress-label").textContent=label;
+  document.getElementById("progress-sub").textContent=sub||"";
+}
+
+// ── API ──────────────────────────────────────────────────
+async function ckFetch(path){
+  const r=await fetch("https://api.clickup.com/api/v2"+path,{
+    headers:{Authorization:TOKEN,"Content-Type":"application/json"}
+  });
+  if(!r.ok) throw new Error(`ClickUp ${r.status}: ${await r.text()}`);
+  return r.json();
+}
+async function ckPost(path,body){
+  const r=await fetch("https://api.clickup.com/api/v2"+path,{
+    method:"POST",
+    headers:{Authorization:TOKEN,"Content-Type":"application/json"},
+    body:JSON.stringify(body)
+  });
+  if(!r.ok) throw new Error(`ClickUp ${r.status}: ${await r.text()}`);
+  return r.json();
+}
+
+// Busca todas as tasks da lista, paginando e incluindo todos os status
+async function fetchAllTasks(listId, label){
+  const all=[]; let page=0;
+  while(true){
+    setProgress(
+      null,
+      `Buscando lista ${label}... (${all.length} tasks)`,
+      `página ${page+1}`
+    );
+    // include_closed=true traz status "closed"
+    // orderby=created evita duplicatas entre páginas
+    const url=`/list/${listId}/task?page=${page}&include_closed=true&subtasks=false&order_by=created`;
+    const data=await ckFetch(url);
+    const tasks=data.tasks||[];
+    if(!tasks.length) break;
+    all.push(...tasks);
+    if(data.last_page===true||tasks.length<100) break;
+    page++;
+  }
+  return all;
+}
+
+// ── Tier ─────────────────────────────────────────────────
+function selectTier(t,btn){
+  TIER=t;
+  document.querySelectorAll(".tier-btn").forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active");
+  checkReady();
+}
+function checkReady(){
+  if(TIER&&SHEET_ROWS) show("btn-analyze");
+  else hide("btn-analyze");
+}
+
+// ── File ─────────────────────────────────────────────────
+function onDrop(e){e.preventDefault();const f=e.dataTransfer.files[0];if(f)processFile(f);}
+function onFileChange(e){if(e.target.files[0])processFile(e.target.files[0]);}
+function processFile(file){
+  clearError();
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const wb=XLSX.read(new Uint8Array(ev.target.result),{type:"array",cellDates:false,raw:true});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const raw=XLSX.utils.sheet_to_json(ws,{defval:""});
+      const clean=h=>String(h).replace(/^['"\s]+|['"\s]+$/g,"");
+      const rows=raw.map(row=>{
+        const r={};
+        for(const k of Object.keys(row)){
+          const nk=clean(k);let v=row[k];
+          if(typeof v==="string")v=v.replace(/^['"\s]+|['"\s]+$/g,"").trim();
+          r[nk]=v;
+        }
+        return r;
+      });
+      for(const row of rows){
+        for(const h of Object.keys(row)){
+          const hl=h.toLowerCase().trim();
+          if(hl==="vencimento"&&typeof row[h]==="number")row[h]=serialToDate(row[h]);
+          if(hl==="valor"&&typeof row[h]==="string"){const n=parseFloat(row[h].replace(",","."));if(!isNaN(n))row[h]=n;}
+        }
+      }
+      const valid=rows.filter(r=>{
+        const d=String(colGet(r,"Devedor","devedor")||"").trim();
+        return d&&!d.startsWith("Filtros")&&!d.startsWith("Total")&&d!=="Devedor";
+      });
+      if(!valid.length){showError("Nenhum registro válido. Verifique se há coluna 'Devedor' na planilha.");return;}
+      SHEET_ROWS=valid;
+      const dz=document.getElementById("drop-zone");
+      dz.classList.add("loaded");
+      show("drop-bar");
+      document.getElementById("drop-icon").textContent="📊";
+      document.getElementById("drop-label").style.color="var(--text)";
+      document.getElementById("drop-label").textContent=`✓ ${valid.length} registros válidos`;
+      document.getElementById("drop-cols").textContent="Colunas: "+Object.keys(valid[0]).filter(k=>!k.startsWith("_")).join(", ");
+      checkReady();
+    }catch(ex){showError("Erro ao ler planilha: "+ex.message);}
+  };
+  reader.onerror=()=>showError("Falha ao carregar o arquivo.");
+  reader.readAsArrayBuffer(file);
+}
+
+// ── Analysis ─────────────────────────────────────────────
+async function runAnalysis(){
+  clearError();hide("step-setup");show("step-analyzing");
+  try{
+    const tiersToFetch=TIER==="TODOS"?["AB","C","D"]:[TIER];
+    const ckIndex={};
+    const ckCount={AB:0,C:0,D:0};
+    let totalCk=0;
+
+    for(let i=0;i<tiersToFetch.length;i++){
+      const t=tiersToFetch[i];
+      setProgress(5+(i/tiersToFetch.length)*55,`Buscando lista ${t} no ClickUp...`,"");
+      const tasks=await fetchAllTasks(LISTS[t],t);
+      ckCount[t]=tasks.length;
+      totalCk+=tasks.length;
+      ckIndex[t]={};
+      for(const task of tasks){
+        const credor=task.custom_fields?.find(f=>f.id===CF.credor)?.value||"";
+        const anoMes=task.custom_fields?.find(f=>f.id===CF.anoMes)?.value||"";
+        ckIndex[t][makeKey(task.name,credor,anoMes)]=true;
+      }
+    }
+
+    setProgress(65,"Comparando com a planilha...","");
+    NEW_ROWS=[];
+    for(const row of SHEET_ROWS){
+      const devedor=colGet(row,"Devedor","devedor");
+      const credor=colGet(row,"Credor","credor");
+      const anoMes=colGet(row,"AnoMes","Ano/Mês","anomes");
+      let t=TIER;
+      if(TIER==="TODOS"){t=tierMap(colGet(row,"Tier","grupo_trabalho_descricao"));if(!t)continue;}
+      if(!ckIndex[t]?.[makeKey(devedor,credor,anoMes)]) NEW_ROWS.push({...row,_tier:t});
+    }
+
+    setProgress(100,"Concluído","");
+    renderPreview(SHEET_ROWS.length,totalCk,ckCount,NEW_ROWS);
+    hide("step-analyzing");show("step-preview");
+  }catch(ex){
+    showError("Erro: "+ex.message);
+    hide("step-analyzing");show("step-setup");
+  }
+}
+
+function renderPreview(total,ckTotal,ckCount,novos){
+  const existing=total-novos.length;
+  document.getElementById("preview-stats").innerHTML=`
+    <div class="stat-card"><div class="stat-val">${total}</div><div class="stat-label">Na planilha</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:var(--muted)">${ckTotal}</div><div class="stat-label">No ClickUp</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:var(--muted)">${existing}</div><div class="stat-label">Já existem</div></div>
+    <div class="stat-card" style="${novos.length>0?"background:var(--successDim)":""}">
+      <div class="stat-val" style="color:${novos.length>0?"var(--success)":"var(--muted)"}">${novos.length}</div>
+      <div class="stat-label">Novos</div>
+    </div>`;
+
+  // Debug: mostra contagem por lista
+  const dbg=document.getElementById("ck-debug");
+  dbg.innerHTML=`🔍 Tasks encontradas no ClickUp → AB: <b>${ckCount.AB}</b> · C: <b>${ckCount.C}</b> · D: <b>${ckCount.D}</b><br>
+  `;
+  dbg.classList.remove("hidden");
+
+  if(!novos.length){show("preview-empty");hide("preview-table-wrap");return;}
+  hide("preview-empty");show("preview-table-wrap");
+  const cols=(TIER==="TODOS"?["Tier"]:[]).concat(["Devedor","Credor","Parcela","Vencimento","AnoMes","Valor"]);
+  document.getElementById("preview-thead").innerHTML=`<tr style="background:var(--surfaceAlt)">${cols.map(h=>`<th style="font-size:9px;color:var(--accent);text-transform:uppercase;letter-spacing:.1em;border-bottom:1px solid var(--border)">${h}</th>`).join("")}</tr>`;
+  document.getElementById("preview-tbody").innerHTML=novos.map(row=>`<tr style="border-bottom:1px solid var(--border)">
+    ${TIER==="TODOS"?`<td style="color:var(--accent)">${row._tier}</td>`:""}
+    <td style="color:var(--text)">${colGet(row,"Devedor","devedor")}</td>
+    <td style="color:var(--muted)">${colGet(row,"Credor","credor")}</td>
+    <td style="color:var(--muted)">${colGet(row,"Parcela","parcela")}</td>
+    <td style="color:var(--muted)">${colGet(row,"Vencimento","vencimento")}</td>
+    <td style="color:var(--muted)">${colGet(row,"AnoMes","Ano/Mês","anomes")}</td>
+    <td style="color:var(--accent)">${fmtBRL(colGet(row,"Valor","valor"))}</td>
+  </tr>`).join("");
+  document.getElementById("btn-import").textContent=`↑ Importar ${novos.length} registro${novos.length!==1?"s":""} para o ClickUp`;
+}
+
+// ── Import ────────────────────────────────────────────────
+async function runImport(){
+  hide("step-preview");show("step-done");
+  const list=document.getElementById("results-list");
+  list.innerHTML="";
+  for(let i=0;i<NEW_ROWS.length;i++){
+    const row=NEW_ROWS[i];
+    const devedor=String(colGet(row,"Devedor","devedor")||"");
+    const parcela=String(colGet(row,"Parcela","parcela")||"");
+    const credor=String(colGet(row,"Credor","credor")||"");
+    const anoMes=String(colGet(row,"AnoMes","Ano/Mês","anomes")||"");
+    const valor=parseFloat(colGet(row,"Valor","valor")||0);
+    const vencISO=toTimestamp(String(colGet(row,"Vencimento","vencimento")||""));
+    const pending=document.createElement("div");
+    pending.className="result-row result-pending";
+    pending.textContent=`${i+1} de ${NEW_ROWS.length} — ${devedor}`;
+    list.appendChild(pending);
+    list.scrollTop=list.scrollHeight;
+    const cfs=[
+      {id:CF.parcela,value:parcela},{id:CF.credor,value:credor},
+      {id:CF.anoMes,value:anoMes},{id:CF.valor,value:valor},
+      ...(vencISO?[{id:CF.vencimento,value:vencISO}]:[]),
+    ];
+    let ok=false,url="",errMsg="";
+    try{
+      const r=await ckPost(`/list/${LISTS[row._tier]}/task`,{name:devedor,custom_fields:cfs});
+      ok=true;url=r.url||"";
+    }catch(ex){errMsg=ex.message;}
+    list.removeChild(pending);
+    const div=document.createElement("div");
+    div.className=`result-row ${ok?"result-ok":"result-err"}`;
+    div.innerHTML=`
+      <span style="color:${ok?"var(--success)":"var(--danger)"};font-size:14px">${ok?"✓":"✗"}</span>
+      <span style="flex:1;font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+        ${devedor} <span style="color:var(--muted)">· ${anoMes}${TIER==="TODOS"?` · ${row._tier}`:""}</span>
+      </span>
+      ${ok&&url?`<a href="${url}" target="_blank" style="font-size:10px;padding:2px 8px;border:1px solid rgba(212,168,83,.27);border-radius:4px;white-space:nowrap">Abrir ↗</a>`:""}
+      ${!ok?`<span style="font-size:10px;color:var(--danger);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${errMsg}</span>`:""}`;
+    list.appendChild(div);
+  }
+  document.getElementById("done-title").textContent="Importação concluída";
+  const okCount=list.querySelectorAll(".result-ok").length;
+  const errCount=list.querySelectorAll(".result-err").length;
+  const ds=document.getElementById("done-stats");
+  ds.classList.remove("hidden");
+  ds.innerHTML=`<div class="stat-card" style="background:var(--successDim)"><div class="stat-val" style="color:var(--success)">${okCount}</div><div class="stat-label">Importados</div></div>`
+    +(errCount?`<div class="stat-card" style="background:var(--dangerDim)"><div class="stat-val" style="color:var(--danger)">${errCount}</div><div class="stat-label">Erros</div></div>`:"");
+  show("btn-new");
+}
+
+// ── Reset ─────────────────────────────────────────────────
+function reset(){
+  TIER="";SHEET_ROWS=null;NEW_ROWS=[];
+  clearError();
+  ["step-analyzing","step-preview","step-done"].forEach(hide);
+  document.querySelectorAll(".tier-btn").forEach(b=>b.classList.remove("active"));
+  document.getElementById("drop-zone").classList.remove("loaded");
+  hide("drop-bar");
+  document.getElementById("drop-icon").textContent="📂";
+  document.getElementById("drop-label").style.color="var(--muted)";
+  document.getElementById("drop-label").textContent="Arraste ou clique — .xlsx · .xls · .csv";
+  document.getElementById("drop-cols").textContent="";
+  document.getElementById("file-input").value="";
+  hide("btn-analyze");hide("btn-new");
+  document.getElementById("done-stats").classList.add("hidden");
+  document.getElementById("results-list").innerHTML="";
+  document.getElementById("done-title").textContent="Importando...";
+  document.getElementById("ck-debug").classList.add("hidden");
+  show("step-setup");
+}
+
+// inicia direto no setup (token hardcoded)
+document.addEventListener("DOMContentLoaded",()=>show("step-setup"));
+</script>
+</body>
+</html>
