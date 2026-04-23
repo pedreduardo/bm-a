@@ -141,10 +141,10 @@ async function fetchAllTasks(listId, label){
   const all=[]; let page=0;
   while(true){
     setProgress(null, `Buscando lista ${label}... (${all.length} tasks)`, `página ${page+1}`);
-    const data=await ckFetch(`/list/${listId}/task?page=${page}&include_closed=true&subtasks=false&order_by=created`);
+    const data=await ckFetch(`/list/${listId}/task?page=${page}&subtasks=false&order_by=created`);
     const tasks=data.tasks||[];
     if(!tasks.length) break;
-    all.push(...tasks);
+    all.push(...tasks.filter(t=>t.status?.type==="open"||t.status?.type==="custom"));
     if(data.last_page===true||tasks.length<100) break;
     page++;
   }
