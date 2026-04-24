@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BM&A — Investigação Patrimonial</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Cambria', Georgia, serif; background: #f5f5f2; color: #000; min-height: 100vh; }
+  :root {
+    --bma-dark: #07231E;
+    --bma-green: #00AA69;
+    --bma-amber: #F9A730;
+    --bma-red: #e0325b;
+    --bma-blue: #5A9FF2;
+  }
+  .wrap { max-width: 820px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+  .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 2px solid var(--bma-green); }
+  .header-logo { font-size: 14px; font-weight: 700; color: var(--bma-dark); letter-spacing: 0.5px; line-height: 1.4; }
+  .header-logo span { color: var(--bma-green); }
+  .badge { background: var(--bma-dark); color: #fff; font-size: 10px; padding: 3px 10px; border-radius: 4px; letter-spacing: 0.5px; }
+
+  .toolbar { display: flex; gap: 8px; margin-bottom: 1.5rem; flex-wrap: wrap; align-items: center; }
+  .search-row { display: flex; gap: 8px; flex: 1; min-width: 260px; }
+  .search-row input { flex: 1; padding: 11px 16px; border: 1.5px solid #ccc; border-radius: 8px; font-family: 'Cambria', serif; font-size: 15px; color: #000; background: #fff; transition: border-color 0.2s; }
+  .search-row input:focus { outline: none; border-color: var(--bma-green); }
+  .btn-primary { background: var(--bma-dark); color: #fff; border: none; padding: 11px 24px; border-radius: 8px; font-family: 'Cambria', serif; font-size: 14px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+  .btn-primary:hover { background: #0d3a33; }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-pdf { background: #fff; color: var(--bma-dark); border: 1.5px solid var(--bma-dark); padding: 11px 18px; border-radius: 8px; font-family: 'Cambria', serif; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; display: none; gap: 6px; align-items: center; }
+  .btn-pdf:hover { background: #f0f0ee; }
+  .btn-pdf.visible { display: inline-flex; }
+
+  .section { margin-bottom: 1.5rem; border: 1px solid #ddd; border-radius: 10px; overflow: hidden; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+  .section-header { background: var(--bma-dark); color: #fff; padding: 9px 16px; font-size: 12px; font-weight: 700; letter-spacing: 0.5px; display: flex; align-items: center; justify-content: space-between; }
+  .status-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .status-dot.loading { background: var(--bma-amber); animation: pulse 1s infinite; }
+  .status-dot.ok      { background: var(--bma-green); }
+  .status-dot.error   { background: var(--bma-red); }
+  .status-dot.pending { background: #777; }
+  @keyframes pulse { 0%,100%{opacity:1;}50%{opacity:0.35;} }
+
+  .section-body { padding: 14px 16px; }
+  .section-body.empty { color: #777; font-size: 13px; font-style: italic; }
+
+  table.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.data-table td { padding: 7px 10px; border-bottom: 1px solid #eee; color: #000; }
+  table.data-table tr:last-child td { border-bottom: none; }
+  table.data-table td.label { color: #666; font-size: 12px; width: 38%; }
+
+  .tag { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+  .tag-ativa    { background: #d4f4e8; color: #0a6640; }
+  .tag-inapta   { background: #fde8ee; color: #8a1530; }
+  .tag-baixada  { background: #f5e8d4; color: #7a4a0a; }
+  .tag-suspensa { background: #e8edf5; color: #2a3a6a; }
+  .tag-default  { background: #eee;    color: #555; }
+
+  .link-btn { display: inline-flex; align-items: center; gap: 5px; padding: 6px 14px; border: 1px solid #ddd; border-radius: 6px; font-size: 12px; color: #000; text-decoration: none; background: #f5f5f2; cursor: pointer; margin: 3px; font-family: 'Cambria', serif; }
+  .link-btn:hover { background: #e8e8e5; }
+  .link-btn.green { background: var(--bma-green); color: #fff; border-color: var(--bma-green); font-weight: 700; }
+  .link-btn.green:hover { background: #009058; }
+  .link-btn.amber { background: var(--bma-amber); color: #fff; border-color: var(--bma-amber); font-weight: 700; }
+  .link-btn.amber:hover { background: #e09020; }
+  .link-btn.dark { background: var(--bma-dark); color: #fff; border-color: var(--bma-dark); font-weight: 700; }
+  .link-btn.dark:hover { background: #0d3a33; }
+
+  /* Mapa */
+  .map-wrap { position: relative; margin-top: 10px; }
+  .map-frame { width: 100%; height: 220px; border: none; border-radius: 8px; }
+  .map-actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+
+  .socio-item { padding: 9px 0; border-bottom: 1px solid #eee; }
+  .socio-item:last-child { border-bottom: none; }
+  .socio-name   { font-size: 14px; font-weight: 700; color: #000; }
+  .socio-detail { font-size: 12px; color: #666; margin-top: 2px; }
+  .socio-qual   { font-size: 11px; background: #e6f0fa; color: #1a5fa8; padding: 2px 8px; border-radius: 10px; display: inline-block; margin-top: 4px; }
+
+  .alert-info  { background: #e6f0fa; border-left: 3px solid var(--bma-blue);  padding: 9px 13px; border-radius: 0 6px 6px 0; font-size: 12px; color: #1a4a80; margin: 8px 0; line-height: 1.5; }
+  .alert-warn  { background: #fff4e0; border-left: 3px solid var(--bma-amber); padding: 9px 13px; border-radius: 0 6px 6px 0; font-size: 12px; color: #7a4a0a; margin: 8px 0; line-height: 1.5; }
+  .alert-error { background: #fde8ee; border-left: 3px solid var(--bma-red);   padding: 9px 13px; border-radius: 0 6px 6px 0; font-size: 12px; color: #8a1530; margin: 8px 0; }
+
+  /* Escavador */
+  .proc-summary { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+  .proc-card { background: #f5f5f2; border-radius: 8px; padding: 12px 18px; text-align: center; border: 1px solid #eee; min-width: 110px; }
+  .proc-num   { font-size: 28px; font-weight: 700; color: var(--bma-dark); }
+  .proc-label { font-size: 11px; color: #666; margin-top: 3px; }
+
+  .trib-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(145px, 1fr)); gap: 8px; margin-top: 12px; }
+  .trib-card { border-radius: 8px; padding: 10px 12px; border: 1px solid #f0aabb; background: #fde8ee; }
+  .trib-sigla { font-size: 13px; font-weight: 700; color: #000; }
+  .trib-qtd   { font-size: 11px; color: var(--bma-red); font-weight: 700; margin-top: 2px; }
+  .trib-area  { font-size: 10px; color: #888; margin-top: 2px; }
+
+  .proc-table-wrap { overflow-x: auto; margin-top: 14px; }
+  .proc-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .proc-table th { background: var(--bma-dark); color: #fff; padding: 7px 10px; text-align: left; font-size: 11px; font-weight: 700; white-space: nowrap; }
+  .proc-table td { padding: 7px 10px; border-bottom: 1px solid #eee; color: #000; vertical-align: top; }
+  .proc-table tr:nth-child(even) td { background: #fafaf8; }
+  .proc-table td a { color: var(--bma-blue); text-decoration: none; font-size: 11px; }
+  .proc-table td a:hover { text-decoration: underline; }
+  .area-tag { display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 10px; background: #e6f0fa; color: #1a4a80; }
+
+  .divider-line { border: none; border-top: 1px solid #eee; margin: 14px 0; }
+
+  .custo-box { background: #fffbf0; border: 1px solid var(--bma-amber); border-radius: 8px; padding: 12px 16px; margin-bottom: 14px; }
+  .custo-box strong { font-size: 13px; display: block; margin-bottom: 4px; color: #7a4a0a; }
+  .custo-box p { font-size: 12px; color: #7a4a0a; line-height: 1.5; margin-bottom: 10px; }
+  .custo-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .footer-note { font-size: 11px; color: #777; text-align: center; margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #ddd; font-style: italic; line-height: 1.6; }
+  .confidencial { font-size: 10px; font-weight: 700; letter-spacing: 1px; color: var(--bma-red); text-align: right; margin-bottom: 4px; }
+
+  /* Toast */
+  .toast { position: fixed; bottom: 24px; right: 24px; background: var(--bma-dark); color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 13px; font-family: 'Cambria', serif; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 9999; }
+  .toast.show { opacity: 1; }
+
+  /* ——— CSS DE IMPRESSÃO / PDF ——— */
+  @media print {
+    body { background: #fff !important; }
+    .toolbar, .btn-pdf, .search-row, .btn-primary,
+    .custo-btns, .map-actions, .no-print { display: none !important; }
+    .wrap { max-width: 100% !important; padding: 0 !important; }
+    .section { box-shadow: none !important; border: 1px solid #ccc !important; break-inside: avoid; margin-bottom: 1rem !important; }
+    .section-header { background: var(--bma-dark) !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .proc-table th { background: var(--bma-dark) !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .trib-card { background: #fde8ee !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; break-inside: avoid; }
+    .tag-ativa, .tag-inapta, .tag-baixada, .tag-suspensa, .area-tag { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .proc-table-wrap { overflow: visible !important; }
+    .map-frame { display: block !important; height: 200px !important; }
+    a { color: var(--bma-blue) !important; text-decoration: underline !important; }
+    .footer-note { margin-top: 1rem !important; }
+    .confidencial { display: block !important; }
+    .print-header { display: block !important; }
+  }
+  .print-header { display: none; font-size: 11px; color: #888; margin-bottom: 8px; }
+</style>
+</head>
+<body>
+<div class="toast" id="toast"></div>
+<div class="wrap">
+  <div class="confidencial">CONFIDENCIAL — USO INTERNO BM&A</div>
+
+  <div class="header">
+    <div class="header-logo">
+      BRAVO <span>MEDINA</span> ADVOGADOS<br>
+      <span style="color:#888;font-size:10px;font-weight:400;letter-spacing:0">RECUPERAÇÃO DE CRÉDITO</span>
+    </div>
+    <span class="badge">RC · INVESTIGAÇÃO PATRIMONIAL</span>
+  </div>
+
+  <div class="toolbar">
+    <div class="search-row">
+      <input type="text" id="cnpj-input" placeholder="Digite o CNPJ (ex: 00.000.000/0001-00)" maxlength="18" />
+      <button class="btn-primary" id="btn-buscar" onclick="iniciarBusca()">Investigar</button>
+    </div>
+    <button class="btn-pdf" id="btn-pdf" onclick="exportarPDF()">🖨 Exportar PDF</button>
+  </div>
+
+  <div id="resultado" style="display:none;">
+
+    <div class="section">
+      <div class="section-header">1. DADOS CADASTRAIS — RECEITA FEDERAL <div class="status-dot pending" id="dot-cadastral"></div></div>
+      <div class="section-body empty" id="body-cadastral">Aguardando consulta...</div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">2. ENDEREÇO CADASTRAL <div class="status-dot pending" id="dot-endereco"></div></div>
+      <div class="section-body empty" id="body-endereco">Aguardando consulta...</div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">3. QUADRO SOCIETÁRIO <div class="status-dot pending" id="dot-societario"></div></div>
+      <div class="section-body empty" id="body-societario">Aguardando consulta...</div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">4. MAPEAMENTO PROCESSUAL — ESCAVADOR <div class="status-dot pending" id="dot-escavador"></div></div>
+      <div class="section-body empty" id="body-escavador">Aguardando consulta...</div>
+    </div>
+
+  </div>
+
+  <div class="footer-note">
+    Bravo Medina Advogados &mdash; Recuperação de Crédito<br>
+    Avenida Castelo Branco, 695 | CEP 86061-335 | Londrina - PR<br>
+    contato@bravomedina.adv.br | (43) 3324-4801<br>
+    Documento Confidencial &mdash; Uso Exclusivo BM&amp;A
+  </div>
+</div>
+
+<script>
+const ESCAVADOR_TOKEN = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiIxIiwianRpIjoiNGNmOTlkZTZhZGRiMmY5NTM4MDliODZjN2E3NDEyNzUxYTI2Y2I2YjFmNTJhNTJlMTAzNWMxNzYxOTc3N2I4MmM5ZTdiOGFjZGMyNmFiNGUiLCJpYXQiOjE3NzY5ODY1NjAuMjQ4MTUyLCJuYmYiOjE3NzY5ODY1NjAuMjQ4MTU1LCJleHAiOjIwOTI2MDU3NjAuMjQ2MTEyLCJzdWIiOiIyODY2NjczIiwic2NvcGVzIjpbImFjZXNzYXJfYXBpX3BhZ2EiXX0.FHu8_mxS-WhFbbymV-9vHyOz36VBmzhIx8ssc_l6uLw_BslcxKLcW4jm20PP91N-iOKYSSzkzjPpcG6ZA7vhOH3Zud6ImMR5A7rSgxqDAwtxle6-yDiMlqmYcvg6JHTFasoM-vZqeaPiWNVtPr3-GPwTc56DsNbWTJNEZJydLnyHkOMggyWH2MH6ZvGxU9UHBYVgFRwshtfggYvez_Tx5_mVdBTkMRTVtaVIV74ey-wvAb61GTFNWTTIJTkqRXvuNB-Zhh7FdT2WC6WLAcRfYws0fDdCaT-E_UP3o2MzJQbHjI0igI-WHseJ8DGL5F_Yvgnep6X82-xmy6iDCBPQT-2T7mVf_V-VRZtCufQaheB4zY6NYVzRaUl7N3lHjpvc76fLG8rjq1cNrZ8li_QlctrRtrlffmtj2TcFRHjpv335Qp3gFBciZw3rO6qzSleO-W_l5j6E5wXUJVBz6CXKAG9vi9s6Km8o0IrKwOs0wVUeQbvtNBhKihNZWsWEwkaT2Bun9_H9k2oMHiJ8CKTDVYpiD0HKgGTAySfjrKuuMyA1azM_L6jyF7PN4v0fsCY4ZJAmB_G3Tc3fRdhC8nbjj8-4871PpkJoD1PWFbeA3lYWMSwFElZ0V9b6c-4E3jPu8AE_Jzmk9wBMiDVfsH5JAQ2yLlDWUuninj2vJp23o7o';
+const ESC_BASE = 'https://api.escavador.com/api/v2';
+const ESC_H    = { 'Authorization': 'Bearer ' + ESCAVADOR_TOKEN, 'Accept': 'application/json' };
+
+let escCnpjAtual = '', escCnpjFmtAtual = '', escRazaoAtual = '';
+let enderecoQueryAtual = '';
+
+// ——— Toast ———
+function showToast(msg, duracao = 2500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), duracao);
+}
+
+// ——— PDF ———
+function exportarPDF() {
+  document.title = 'BMA_Investigacao_' + (escCnpjFmtAtual || 'consulta');
+  window.print();
+}
+
+// ——— Utilitários ———
+function formatCNPJ(v) {
+  v = v.replace(/\D/g,'').slice(0,14);
+  v = v.replace(/^(\d{2})(\d)/,'$1.$2');
+  v = v.replace(/^(\d{2})\.(\d{3})(\d)/,'$1.$2.$3');
+  v = v.replace(/\.(\d{3})(\d)/,'.$1/$2');
+  v = v.replace(/(\d{4})(\d)/,'$1-$2');
+  return v;
+}
+function cnpjParaFmt(c) {
+  c = c.replace(/\D/g,'');
+  return c.slice(0,2)+'.'+c.slice(2,5)+'.'+c.slice(5,8)+'/'+c.slice(8,12)+'-'+c.slice(12,14);
+}
+document.getElementById('cnpj-input').addEventListener('input', function(){ this.value = formatCNPJ(this.value); });
+document.getElementById('cnpj-input').addEventListener('keydown', function(e){ if(e.key==='Enter') iniciarBusca(); });
+
+function setDot(id,s){ const d=document.getElementById('dot-'+id); if(d) d.className='status-dot '+s; }
+function setBody(id,html,isEmpty){ const b=document.getElementById('body-'+id); if(b){b.innerHTML=html;b.className=isEmpty?'section-body empty':'section-body';} }
+
+function getTag(sit){
+  const s=(sit||'').toLowerCase();
+  if(s.includes('ativa'))   return '<span class="tag tag-ativa">ATIVA</span>';
+  if(s.includes('inapta'))  return '<span class="tag tag-inapta">INAPTA</span>';
+  if(s.includes('baixada')||s.includes('cancelada')) return '<span class="tag tag-baixada">BAIXADA</span>';
+  if(s.includes('suspensa')) return '<span class="tag tag-suspensa">SUSPENSA</span>';
+  return '<span class="tag tag-default">'+(sit||'—')+'</span>';
+}
+
+// ——— Copiar link do mapa ———
+function copiarLinkMapa() {
+  const url = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(enderecoQueryAtual);
+  navigator.clipboard.writeText(url).then(() => showToast('✓ Link do mapa copiado!')).catch(() => {
+    // Fallback para browsers sem clipboard API
+    const el = document.createElement('textarea');
+    el.value = url;
+    document.body.appendChild(el);
+    el.select();
+    document.execCommand('copy');
+    document.body.removeChild(el);
+    showToast('✓ Link do mapa copiado!');
+  });
+}
+
+function abrirMapsNova() {
+  window.open('https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(enderecoQueryAtual), '_blank');
+}
+
+// ——— Renders ———
+function renderCadastral(d){
+  const rows=[
+    ['Razão Social', d.razao_social||d.nome||'—'],
+    ['CNPJ', d.cnpj||'—'],
+    ['Situação', getTag(d.descricao_situacao_cadastral||(d.situacao&&d.situacao.descricao)||'')],
+    ['Data de Abertura', d.data_inicio_atividade||d.abertura||'—'],
+    ['Porte', (d.porte&&d.porte.descricao)||d.porte||'—'],
+    ['Capital Social', d.capital_social?'R$ '+Number(d.capital_social).toLocaleString('pt-BR',{minimumFractionDigits:2}):'—'],
+    ['Natureza Jurídica', (d.natureza_juridica&&d.natureza_juridica.descricao)||d.natureza_juridica||'—'],
+    ['CNAE Principal', d.cnae_fiscal_descricao||(d.atividade_principal&&d.atividade_principal[0]&&d.atividade_principal[0].text)||'—'],
+    ['Tipo', d.identificador_matriz_filial===1?'MATRIZ':d.identificador_matriz_filial===2?'FILIAL':'—'],
+    ['E-mail', d.email||'—'],
+    ['Telefone', d.ddd_telefone_1?'('+d.ddd_telefone_1.slice(0,2)+') '+d.ddd_telefone_1.slice(2):'—'],
+  ];
+  return '<table class="data-table">'+rows.map(r=>'<tr><td class="label">'+r[0]+'</td><td>'+r[1]+'</td></tr>').join('')+'</table>';
+}
+
+function renderEndereco(d){
+  const logradouro=d.logradouro||''; const numero=d.numero||''; const complemento=d.complemento||'';
+  const bairro=d.bairro||''; const municipio=(d.municipio&&d.municipio.descricao)||d.municipio||'';
+  const uf=d.uf||''; const cep=d.cep||'';
+  const endFull=[logradouro,numero,complemento,bairro,municipio+(uf?' - '+uf:''),(cep?'CEP '+cep:'')].filter(Boolean).join(', ');
+  enderecoQueryAtual = endFull;
+  const q = encodeURIComponent(endFull);
+  const mapsUrl  = 'https://maps.google.com/maps?q='+q+'&output=embed';
+  const mapsLink = 'https://www.google.com/maps/search/?api=1&query='+q;
+  return '<div style="font-size:13px;margin-bottom:8px"><strong>'+endFull+'</strong></div>'+
+    '<div class="map-wrap">'+
+    '<iframe class="map-frame" src="'+mapsUrl+'" allowfullscreen loading="lazy"></iframe>'+
+    '<div class="map-actions no-print">'+
+    '<a class="link-btn" href="'+mapsLink+'" target="_blank">📍 Abrir no Google Maps</a>'+
+    '<button class="link-btn" onclick="copiarLinkMapa()">📋 Copiar link do mapa</button>'+
+    
+    '</div>'+
+    '<div class="print-header">Endereço: <a href="'+mapsLink+'">'+mapsLink+'</a></div>'+
+    '</div>';
+}
+
+function renderSocietario(qsa){
+  if(!qsa||!qsa.length) return '<div class="alert-warn">Nenhum sócio identificado na base pública.</div>';
+  return qsa.map(s=>{
+    const nome=s.nome_socio||s.nome||'—';
+    const cpfCnpj=s.cpf_cnpj_socio||s.cnpj_cpf_do_socio||'';
+    const qual=(s.qualificacao_socio&&s.qualificacao_socio.descricao)||s.qualificacao||'';
+    const entrada=s.data_entrada_sociedade||'';
+    return '<div class="socio-item">'+
+      '<div class="socio-name">'+nome+'</div>'+
+      '<div class="socio-detail">'+(cpfCnpj?'CPF/CNPJ: '+cpfCnpj:'')+(entrada?' &middot; Entrada: '+entrada:'')+'</div>'+
+      (qual?'<span class="socio-qual">'+qual+'</span>':'')+
+      '</div>';
+  }).join('');
+}
+
+// ——— Escavador ———
+function renderEscavadorInicial(cnpjLimpo, cnpjFmt) {
+  const urlPerfil = 'https://www.escavador.com/sobre/' + encodeURIComponent(cnpjFmt);
+  return '<div class="custo-box">' +
+    '<strong>⚖️ Consulta Processual — Escavador</strong>' +
+    '<p>A consulta gratuita abre o perfil no site do Escavador sem consumir créditos da API.<br>' +
+    'A consulta via API retorna os processos aqui no painel e <strong>consome créditos</strong> ' +
+    '(até 3 créditos para ~300 processos). Um PDF será gerado automaticamente ao concluir.</p>' +
+    '<div class="custo-btns">' +
+    '<button class="link-btn amber" onclick="confirmarApiEscavador()">⚡ Buscar processos via API</button>' +
+    '</div></div>';
+}
+
+function renderEscavadorResultados(dados) {
+  const { total, poloAtivo, poloPassivo, tribunais, processos, cnpjFmt } = dados;
+  const urlPerfil = 'https://www.escavador.com/sobre/' + encodeURIComponent(cnpjFmt);
+  let html = '';
+
+  html += '<div class="proc-summary">' +
+    '<div class="proc-card"><div class="proc-num">'+total+'</div><div class="proc-label">Total de Processos</div></div>' +
+    '<div class="proc-card"><div class="proc-num" style="color:#0a6640">'+poloAtivo+'</div><div class="proc-label">Polo Ativo</div></div>' +
+    '<div class="proc-card"><div class="proc-num" style="color:#8a1530">'+poloPassivo+'</div><div class="proc-label">Polo Passivo</div></div>' +
+    '<div class="proc-card"><div class="proc-num" style="color:var(--bma-blue)">'+Object.keys(tribunais).length+'</div><div class="proc-label">Tribunais</div></div>' +
+    '</div>';
+
+  if (Object.keys(tribunais).length > 0) {
+    const sorted = Object.entries(tribunais).sort((a,b) => b[1].count - a[1].count);
+    html += '<div style="font-size:12px;font-weight:700;color:#444;margin-bottom:6px;letter-spacing:0.3px">TRIBUNAIS COM PROCESSOS</div>';
+    html += '<div class="trib-grid">';
+    sorted.forEach(([sigla, info]) => {
+      const areas = [...info.areas].filter(a => a && a !== '?').join(', ') || '—';
+      html += '<div class="trib-card">' +
+        '<div class="trib-sigla">'+sigla+'</div>' +
+        '<div class="trib-qtd">'+info.count+' processo(s)</div>' +
+        '<div class="trib-area">'+areas+'</div>' +
+        '</div>';
+    });
+    html += '</div>';
+  }
+
+  if (processos.length > 0) {
+    html += '<hr class="divider-line">';
+    html += '<div style="font-size:12px;font-weight:700;color:#444;margin-bottom:8px;letter-spacing:0.3px">' +
+      'PROCESSOS ('+processos.length+(total > processos.length ? ' de '+total : '')+')' +
+      (total > processos.length ? ' <span class="no-print" style="font-weight:400;color:#888">— <a href="'+urlPerfil+'" target="_blank" style="color:var(--bma-blue)">ver todos no Escavador</a></span>' : '') +
+      '</div>';
+    html += '<div class="proc-table-wrap"><table class="proc-table"><thead><tr>' +
+      '<th>Número CNJ</th><th>Tribunal</th><th>Ano</th><th>Área</th><th>Polo Ativo</th><th>Polo Passivo</th>' +
+      '</tr></thead><tbody>';
+    processos.forEach(p => {
+      const fonte   = (p.fontes||[])[0]||{};
+      const sigla   = (fonte.tribunal&&fonte.tribunal.sigla)||'—';
+      const area    = (fonte.capa&&fonte.capa.area)||'—';
+      const num     = p.numero_cnj||'—';
+      const ano     = p.ano_inicio||'—';
+      const ativo   = p.titulo_polo_ativo||'—';
+      const passivo = p.titulo_polo_passivo||'—';
+      const url     = fonte.url||'';
+      html += '<tr>' +
+        '<td>'+(url?'<a href="'+url+'" target="_blank">'+num+'</a>':num)+'</td>' +
+        '<td>'+sigla+'</td><td>'+ano+'</td>' +
+        '<td><span class="area-tag">'+area+'</span></td>' +
+        '<td style="font-size:11px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+ativo+'">'+ativo+'</td>' +
+        '<td style="font-size:11px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+passivo+'">'+passivo+'</td>' +
+        '</tr>';
+    });
+    html += '</tbody></table></div>';
+  }
+
+  // Botão exportar PDF nos resultados (aparece também aqui)
+  html += '<hr class="divider-line">';
+  html += '<div class="no-print" style="display:flex;gap:8px;flex-wrap:wrap">' +
+    '<a class="link-btn" href="'+urlPerfil+'" target="_blank">🔗 Ver perfil completo no Escavador</a>' +
+    '<button class="link-btn dark" onclick="exportarPDF()">🖨 Exportar PDF</button>' +
+    '</div>';
+
+  return html;
+}
+
+async function confirmarApiEscavador() {
+  if (!escCnpjAtual) return;
+  setDot('escavador', 'loading');
+  setBody('escavador', '<div style="padding:8px;color:#666;font-size:13px">Consultando Escavador via API...</div>', false);
+
+  try {
+    const cnpjFmt   = escCnpjFmtAtual;
+    const cnpjLimpo = escCnpjAtual;
+    let processos = [], tribunais = {}, poloAtivo = 0, poloPassivo = 0, total = 0, cursor = null, paginas = 0;
+    const MAX_PAGINAS = 3;
+
+    do {
+      let url = ESC_BASE + '/envolvido/processos?cpf_cnpj=' + encodeURIComponent(cnpjFmt) + '&limit=100';
+      if (cursor) url += '&cursor=' + encodeURIComponent(cursor);
+      const r = await fetch(url, { headers: ESC_H, signal: AbortSignal.timeout(30000) });
+      if (!r.ok) { const err = await r.json(); throw new Error((err.message||'HTTP '+r.status)); }
+      const data = await r.json();
+
+      if (paginas === 0) total = (data.envolvido_encontrado||{}).quantidade_processos || 0;
+
+      (data.items||[]).forEach(proc => {
+        processos.push(proc);
+        (proc.fontes||[]).forEach(fonte => {
+          const sigla = (fonte.tribunal&&fonte.tribunal.sigla)||fonte.sigla||'?';
+          const area  = (fonte.capa&&fonte.capa.area)||'?';
+          if (!tribunais[sigla]) tribunais[sigla] = { count:0, areas:new Set() };
+          tribunais[sigla].count++;
+          tribunais[sigla].areas.add(area);
+          (fonte.envolvidos||[]).forEach(env => {
+            const envCnpj = (env.cnpj||'').replace(/\D/g,'');
+            if (envCnpj === cnpjLimpo) {
+              if (env.polo === 'ATIVO')   poloAtivo++;
+              if (env.polo === 'PASSIVO') poloPassivo++;
+            }
+          });
+        });
+      });
+
+      cursor = (data.links&&data.links.next) ? new URL(data.links.next).searchParams.get('cursor') : null;
+      paginas++;
+    } while (cursor && paginas < MAX_PAGINAS);
+
+    setDot('escavador', 'ok');
+    setBody('escavador', renderEscavadorResultados({ total, poloAtivo, poloPassivo, tribunais, processos, cnpjFmt }), false);
+
+    // PDF automático após concluir
+    setTimeout(() => {
+      showToast('✓ Consulta concluída — abrindo PDF...', 2000);
+      setTimeout(() => exportarPDF(), 2200);
+    }, 400);
+
+  } catch(e) {
+    setDot('escavador', 'error');
+    setBody('escavador',
+      '<div class="alert-error">Erro ao consultar Escavador: '+e.message+'</div>' +
+      renderEscavadorInicial(escCnpjAtual, escCnpjFmtAtual),
+      false);
+  }
+}
+
+// ——— Orquestração principal ———
+async function iniciarBusca() {
+  const cnpj      = document.getElementById('cnpj-input').value.trim();
+  const cnpjLimpo = cnpj.replace(/\D/g,'');
+  if (cnpjLimpo.length !== 14) { alert('Informe um CNPJ válido com 14 dígitos.'); return; }
+
+  const cnpjFmt   = cnpjParaFmt(cnpjLimpo);
+  escCnpjAtual    = cnpjLimpo;
+  escCnpjFmtAtual = cnpjFmt;
+  escRazaoAtual   = cnpj;
+
+  document.getElementById('btn-buscar').disabled = true;
+  document.getElementById('resultado').style.display = 'block';
+  document.getElementById('btn-pdf').classList.add('visible');
+
+  ['cadastral','endereco','societario','escavador']
+    .forEach(id => { setDot(id,'loading'); setBody(id,'Consultando...',true); });
+
+  let razaoSocial = cnpj;
+
+  try {
+    const r = await fetch('https://brasilapi.com.br/api/cnpj/v1/' + cnpjLimpo);
+    if (!r.ok) throw new Error('HTTP '+r.status);
+    const d = await r.json();
+    razaoSocial   = d.razao_social || d.nome || cnpj;
+    escRazaoAtual = razaoSocial;
+
+    setDot('cadastral','ok');  setBody('cadastral',  renderCadastral(d),  false);
+    setDot('endereco','ok');   setBody('endereco',   renderEndereco(d),   false);
+    setDot('societario','ok'); setBody('societario', renderSocietario(d.qsa||d.socios||[]), false);
+  } catch(e) {
+    ['cadastral','endereco','societario'].forEach(id => {
+      setDot(id,'error');
+      setBody(id,'<div class="alert-error">Erro BrasilAPI: '+e.message+'</div>',false);
+    });
+  }
+
+  setDot('escavador', 'ok');
+  setBody('escavador', renderEscavadorInicial(cnpjLimpo, cnpjFmt), false);
+
+  document.getElementById('btn-buscar').disabled = false;
+}
+</script>
+</body>
+</html>
