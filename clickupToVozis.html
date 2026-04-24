@@ -22,6 +22,7 @@
   button{cursor:pointer;font-family:monospace}
   table{border-collapse:collapse;width:100%}
   th,td{text-align:left;padding:6px 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11px}
+  a{color:var(--accent);text-decoration:none}
   @keyframes spin{to{transform:rotate(360deg)}}
   @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
   .fade{animation:fadeIn .3s ease}
@@ -38,214 +39,488 @@
   .stats-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
   .btn-primary{padding:13px;border:none;border-radius:10px;font-size:14px;font-weight:700;letter-spacing:.04em;width:100%;background:linear-gradient(135deg,var(--accent),#C49A3C);color:var(--bg)}
   .btn-success{padding:13px;border:none;border-radius:10px;font-size:14px;font-weight:700;background:linear-gradient(135deg,var(--success),#36B86A);color:var(--bg);width:100%}
+  .btn-ghost{padding:12px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:10px;font-size:12px;width:100%}
   .tier-btn{padding:8px 20px;border:none;border-radius:6px;font-weight:700;font-size:13px;font-family:monospace;background:var(--surfaceAlt);color:var(--muted)}
   .tier-btn.active{background:var(--accent);color:var(--bg);box-shadow:0 0 16px rgba(212,168,83,.27)}
+  .drop-zone{border:1.5px dashed var(--border);border-radius:12px;padding:28px 20px;text-align:center;cursor:pointer;position:relative;overflow:hidden;transition:border-color .2s}
+  .drop-zone.loaded{border-color:var(--accent)}
+  .drop-zone-bar{position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),transparent)}
   .progress-track{height:3px;background:var(--border);border-radius:4px;max-width:320px;margin:0 auto}
   .progress-fill{height:100%;border-radius:4px;background:var(--accent);transition:width .3s}
+  .result-row{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;margin-bottom:5px}
+  .result-ok{background:var(--successDim);border:1px solid rgba(74,222,128,.13)}
+  .result-err{background:var(--dangerDim);border:1px solid rgba(248,113,113,.13)}
+  .result-warn{background:rgba(212,168,83,0.07);border:1px solid rgba(212,168,83,0.15)}
   .error-box{padding:10px 14px;background:var(--dangerDim);border:1px solid rgba(248,113,113,.2);border-radius:8px;font-size:12px;color:var(--danger);margin-bottom:16px}
+  .status-grid{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+  .status-chip{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;border:1.5px solid var(--border);background:var(--surfaceAlt);cursor:pointer;font-size:12px;font-weight:600;color:var(--muted);transition:all .15s;user-select:none}
+  .status-chip.selected{border-color:var(--accent);color:var(--text);background:rgba(212,168,83,0.08)}
+  .status-chip .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+  .status-chip .count{font-size:10px;color:var(--faint);margin-left:2px}
+  .btn-sm{padding:4px 12px;border:1px solid var(--border);border-radius:6px;font-size:11px;background:transparent;color:var(--muted);cursor:pointer}
+  .badge{display:inline-block;padding:1px 7px;border-radius:4px;font-size:10px;font-weight:700;background:var(--surfaceAlt);color:var(--accent);border:1px solid var(--border)}
   #app{max-width:820px;margin:0 auto}
   .hidden{display:none}
-  .badge{display:inline-block;padding:1px 7px;border-radius:4px;font-size:10px;font-weight:700;background:var(--surfaceAlt);color:var(--accent);border:1px solid var(--border)}
+  .tab-bar{display:flex;gap:4px;margin-bottom:24px}
+  .tab-btn{padding:8px 20px;border:none;border-radius:6px 6px 0 0;font-weight:700;font-size:13px;font-family:monospace;cursor:pointer;transition:all .15s}
+  .tab-btn.active{background:var(--accent);color:var(--bg)}
+  .tab-btn.inactive{background:var(--surfaceAlt);color:var(--muted)}
 </style>
 </head>
 <body>
 <div id="app">
-  <div style="margin-bottom:28px;border-bottom:1px solid var(--border);padding-bottom:18px">
+
+  <!-- Header -->
+  <div style="margin-bottom:24px;border-bottom:1px solid var(--border);padding-bottom:18px">
     <div style="font-size:10px;color:var(--accent);letter-spacing:.25em;text-transform:uppercase;margin-bottom:6px">BM&A · Recuperação de Crédito</div>
     <h1>ClickUp para Vozis</h1>
-    <p style="font-size:11px;color:var(--muted);margin-top:4px">Exporta devedores únicos do ClickUp para XLSX de discagem</p>
+    <p style="font-size:11px;color:var(--muted);margin-top:4px">Exporta devedores do ClickUp para XLSX de discagem</p>
   </div>
 
+  <!-- Tab bar -->
+  <div class="tab-bar">
+    <button id="tab-btn-vozis" class="tab-btn active">↗ Exportar Vozis</button>
+    <button id="tab-btn-telefone" class="tab-btn inactive">📞 Importar Telefones</button>
+  </div>
+
+  <!-- Error -->
   <div id="error-box" class="error-box hidden"></div>
 
-  <!-- SETUP -->
-  <div id="step-setup" class="fade">
-    <div class="section-wrap">
-      <div class="section-head"><span class="section-label">01</span><div class="section-hr"></div><span class="section-title">Tier</span><div style="width:16px;height:1px;background:var(--border)"></div></div>
-      <div class="section-body">
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="tier-btn" onclick="selectTier('AB',this)">AB</button>
-          <button class="tier-btn" onclick="selectTier('C',this)">C</button>
-          <button class="tier-btn" onclick="selectTier('D',this)">D</button>
-          <button class="tier-btn" onclick="selectTier('TODOS',this)">TODOS</button>
+  <!-- ═══════════════════════════════════════ -->
+  <!-- ABA VOZIS                               -->
+  <!-- ═══════════════════════════════════════ -->
+  <div id="tab-vozis">
+
+    <div id="v-setup">
+      <div class="section-wrap">
+        <div class="section-head"><span class="section-label">01</span><div class="section-hr"></div><span class="section-title">Tier</span><div style="width:16px;height:1px;background:var(--border)"></div></div>
+        <div class="section-body">
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="tier-btn" id="v-tier-AB">AB</button>
+            <button class="tier-btn" id="v-tier-C">C</button>
+            <button class="tier-btn" id="v-tier-D">D</button>
+            <button class="tier-btn" id="v-tier-TODOS">TODOS</button>
+          </div>
+        </div>
+      </div>
+      <button class="btn-primary hidden" id="v-btn-fetch">Buscar tasks no ClickUp</button>
+    </div>
+
+    <div id="v-fetching" class="hidden" style="text-align:center;padding:40px 0">
+      <div class="spinner"></div>
+      <div id="v-prog-label" style="font-size:13px;color:var(--text);margin-bottom:8px"></div>
+      <div id="v-prog-sub" style="font-size:10px;color:var(--muted);margin-bottom:12px"></div>
+      <div class="progress-track"><div class="progress-fill" id="v-prog-fill" style="width:0%"></div></div>
+    </div>
+
+    <div id="v-status" class="hidden fade">
+      <div class="section-wrap">
+        <div class="section-head"><span class="section-label">02</span><div class="section-hr"></div><span class="section-title">Filtrar por status</span><div style="width:16px;height:1px;background:var(--border)"></div></div>
+        <div class="section-body">
+          <p style="font-size:11px;color:var(--muted);margin-bottom:12px">Selecione os status que quer incluir na exportação:</p>
+          <div style="display:flex;gap:8px;margin-bottom:10px">
+            <button class="btn-sm" id="v-select-all">Selecionar todos</button>
+            <button class="btn-sm" id="v-clear-all">Limpar</button>
+          </div>
+          <div class="status-grid" id="v-status-grid"></div>
+          <button class="btn-primary" id="v-btn-apply" style="margin-top:4px">Aplicar filtro e gerar prévia</button>
         </div>
       </div>
     </div>
-    <button class="btn-primary hidden" id="btn-fetch" onclick="runFetch()">Buscar devedores no ClickUp</button>
-  </div>
 
-  <!-- FETCHING -->
-  <div id="step-fetching" class="hidden" style="text-align:center;padding:40px 0">
-    <div class="spinner"></div>
-    <div id="progress-label" style="font-size:13px;color:var(--text);margin-bottom:8px"></div>
-    <div id="progress-sub" style="font-size:10px;color:var(--muted);margin-bottom:12px"></div>
-    <div class="progress-track"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
-  </div>
-
-  <!-- PREVIEW -->
-  <div id="step-preview" class="hidden fade">
-    <div class="section-wrap">
-      <div class="section-head"><span class="section-label">02</span><div class="section-hr"></div><span class="section-title">Devedores únicos</span><div style="width:16px;height:1px;background:var(--border)"></div></div>
-      <div class="section-body">
-        <div class="stats-row" id="preview-stats"></div>
-        <div style="overflow-x:auto;border-radius:8px;border:1px solid var(--border);margin-bottom:16px;max-height:420px;overflow-y:auto">
-          <table>
-            <thead>
-              <tr style="background:var(--surfaceAlt);position:sticky;top:0">
-                <th style="font-size:9px;color:var(--accent);text-transform:uppercase;letter-spacing:.1em;border-bottom:1px solid var(--border)">#</th>
-                <th style="font-size:9px;color:var(--accent);text-transform:uppercase;letter-spacing:.1em;border-bottom:1px solid var(--border)">nome_contato</th>
-                <th style="font-size:9px;color:var(--accent);text-transform:uppercase;letter-spacing:.1em;border-bottom:1px solid var(--border)">primeiro_nome</th>
-                <th style="font-size:9px;color:var(--accent);text-transform:uppercase;letter-spacing:.1em;border-bottom:1px solid var(--border)">telefone</th>
-                <th style="font-size:9px;color:var(--accent);text-transform:uppercase;letter-spacing:.1em;border-bottom:1px solid var(--border)">qtde_parcelas</th>
-              </tr>
-            </thead>
-            <tbody id="preview-tbody"></tbody>
-          </table>
+    <div id="v-preview" class="hidden fade">
+      <div class="section-wrap">
+        <div class="section-head"><span class="section-label">03</span><div class="section-hr"></div><span class="section-title">Devedores únicos</span><div style="width:16px;height:1px;background:var(--border)"></div></div>
+        <div class="section-body">
+          <div class="stats-row" id="v-stats"></div>
+          <div style="overflow-x:auto;border-radius:8px;border:1px solid var(--border);margin-bottom:16px;max-height:400px;overflow-y:auto">
+            <table>
+              <thead>
+                <tr style="background:var(--surfaceAlt);position:sticky;top:0">
+                  <th style="font-size:9px;color:var(--accent);text-transform:uppercase;letter-spacing:.1em;border-bottom:1px solid var(--border)">#</th>
+                  <th style="font-size:9px;color:var(--accent);text-transform:uppercase;letter-spacing:.1em;border-bottom:1px solid var(--border)">nome_contato</th>
+                  <th style="font-size:9px;color:var(--accent);text-transform:uppercase;letter-spacing:.1em;border-bottom:1px solid var(--border)">primeiro_nome</th>
+                  <th style="font-size:9px;color:var(--accent);text-transform:uppercase;letter-spacing:.1em;border-bottom:1px solid var(--border)">telefone</th>
+                  <th style="font-size:9px;color:var(--accent);text-transform:uppercase;letter-spacing:.1em;border-bottom:1px solid var(--border)">credor</th>
+                  <th style="font-size:9px;color:var(--accent);text-transform:uppercase;letter-spacing:.1em;border-bottom:1px solid var(--border)">qtde_parcelas</th>
+                </tr>
+              </thead>
+              <tbody id="v-tbody"></tbody>
+            </table>
+          </div>
+          <button class="btn-success" id="v-btn-export">⬇ Exportar XLSX</button>
         </div>
-        <button class="btn-success" onclick="exportXLSX()">⬇ Exportar XLSX</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn-ghost" id="v-btn-back">← Mudar filtro</button>
+        <button class="btn-ghost" id="v-btn-reset">Nova busca</button>
       </div>
     </div>
-    <button onclick="reset()" style="margin-top:10px;width:100%;padding:12px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:10px;font-size:12px">Nova busca</button>
-  </div>
-</div>
+
+  </div><!-- /tab-vozis -->
+
+  <!-- ═══════════════════════════════════════ -->
+  <!-- ABA TELEFONES                           -->
+  <!-- ═══════════════════════════════════════ -->
+  <div id="tab-telefone" class="hidden">
+
+    <div id="t-setup">
+      <div class="section-wrap">
+        <div class="section-head"><span class="section-label">01</span><div class="section-hr"></div><span class="section-title">Planilha de telefones</span><div style="width:16px;height:1px;background:var(--border)"></div></div>
+        <div class="section-body">
+          <p style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.6">
+            Planilha com colunas <b style="color:var(--accent)">nome_contato</b> e <b style="color:var(--accent)">telefone</b>.<br>
+            O app busca todas as tasks com esse nome nas 3 listas e atualiza o campo telefone em cada uma.
+          </p>
+          <div class="drop-zone" id="t-dropzone">
+            <div id="t-drop-bar" class="drop-zone-bar hidden"></div>
+            <input type="file" id="t-file" accept=".xlsx,.xls,.csv" style="display:none"/>
+            <div id="t-drop-icon" style="font-size:26px;margin-bottom:8px">📂</div>
+            <div id="t-drop-label" style="font-size:13px;font-weight:600;color:var(--muted)">Arraste ou clique — .xlsx · .xls · .csv</div>
+            <div id="t-drop-sub" style="font-size:10px;color:var(--muted);margin-top:4px"></div>
+          </div>
+        </div>
+      </div>
+      <button class="btn-primary hidden" id="t-btn-run">Buscar tasks e importar telefones</button>
+    </div>
+
+    <div id="t-fetching" class="hidden" style="text-align:center;padding:40px 0">
+      <div class="spinner"></div>
+      <div id="t-prog-label" style="font-size:13px;color:var(--text);margin-bottom:8px"></div>
+      <div id="t-prog-sub" style="font-size:10px;color:var(--muted);margin-bottom:12px"></div>
+      <div class="progress-track"><div class="progress-fill" id="t-prog-fill" style="width:0%"></div></div>
+    </div>
+
+    <div id="t-done" class="hidden fade">
+      <div class="section-wrap">
+        <div class="section-head"><span class="section-label">02</span><div class="section-hr"></div><span class="section-title">Log de atualizações</span><div style="width:16px;height:1px;background:var(--border)"></div></div>
+        <div class="section-body">
+          <div class="stats-row" id="t-stats"></div>
+          <div id="t-log" style="max-height:440px;overflow-y:auto"></div>
+        </div>
+      </div>
+      <button class="btn-ghost" id="t-btn-reset" style="margin-top:10px">Nova importação</button>
+    </div>
+
+  </div><!-- /tab-telefone -->
+
+</div><!-- /app -->
 
 <script>
-const TOKEN = "pk_60977371_UNE7JWRJS39YHBY0QYMQWXBSYUZSVWR3";
-const LISTS = { AB:"901326680340", C:"901326680111", D:"901326670793" };
+// ═══════════════════════════════════════════════
+// CONSTANTES
+// ═══════════════════════════════════════════════
+const TOKEN      = "pk_60977371_UNE7JWRJS39YHBY0QYMQWXBSYUZSVWR3";
+const LISTS      = { AB:"901326680340", C:"901326680111", D:"901326670793" };
+const CF_CREDOR  = "03373f9b-8105-42a5-84a9-609655914957";
+const CF_TELEFONE= "8952f71f-bb7c-4c41-9223-27d3b91a0d2a";
 
-let TIER = "", EXPORT_ROWS = [];
-
-function show(id){document.getElementById(id).classList.remove("hidden");}
-function hide(id){document.getElementById(id).classList.add("hidden");}
-function showError(msg){const el=document.getElementById("error-box");el.textContent="⚠ "+msg;el.classList.remove("hidden");}
-function clearError(){document.getElementById("error-box").classList.add("hidden");}
-function setProgress(pct, label, sub){
-  if(pct!==null) document.getElementById("progress-fill").style.width=pct+"%";
-  document.getElementById("progress-label").textContent=label;
-  document.getElementById("progress-sub").textContent=sub||"";
-}
-
-function primeiroNome(nome){
-  return String(nome||"").trim().split(/\s+/)[0] || "";
+// ═══════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════
+const $  = id => document.getElementById(id);
+const show = id => $(id).classList.remove("hidden");
+const hide = id => $(id).classList.add("hidden");
+function showError(msg){ const el=$("error-box"); el.textContent="⚠ "+msg; el.classList.remove("hidden"); }
+function clearError(){ $("error-box").classList.add("hidden"); }
+function normNome(n){ return String(n||"").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g," "); }
+function primeiroNome(n){ return String(n||"").trim().split(/\s+/)[0]||""; }
+function formatTel(t){
+  const d=String(t||"").replace(/\D/g,"");
+  if(!d) return "";
+  return d.startsWith("55") ? d : "55"+d;
 }
 
 async function ckFetch(path){
-  const r=await fetch("https://api.clickup.com/api/v2"+path,{
-    headers:{Authorization:TOKEN,"Content-Type":"application/json"}
+  const r = await fetch("https://api.clickup.com/api/v2"+path, { headers:{ Authorization:TOKEN, "Content-Type":"application/json" } });
+  if(!r.ok) throw new Error(`ClickUp ${r.status}: ${await r.text()}`);
+  return r.json();
+}
+async function ckPut(taskId, fieldId, value){
+  const r = await fetch(`https://api.clickup.com/api/v2/task/${taskId}/field/${fieldId}`, {
+    method:"POST",
+    headers:{ Authorization:TOKEN, "Content-Type":"application/json" },
+    body:JSON.stringify({ value })
   });
   if(!r.ok) throw new Error(`ClickUp ${r.status}: ${await r.text()}`);
   return r.json();
 }
-
-async function fetchAllTasks(listId, label){
+async function fetchAllTasksFromList(listId, label, setProgress){
   const all=[]; let page=0;
   while(true){
-    setProgress(null, `Buscando lista ${label}... (${all.length} tasks)`, `página ${page+1}`);
-    const data=await ckFetch(`/list/${listId}/task?page=${page}&subtasks=false&order_by=created`);
-    const tasks=data.tasks||[];
+    setProgress(`Buscando lista ${label}... (${all.length} tasks)`, `página ${page+1}`);
+    const data = await ckFetch(`/list/${listId}/task?page=${page}&include_closed=true&subtasks=false&order_by=created`);
+    const tasks = data.tasks||[];
     if(!tasks.length) break;
-    all.push(...tasks.filter(t=>t.status?.type==="open"||t.status?.type==="custom"));
-    if(data.last_page===true||tasks.length<100) break;
+    all.push(...tasks);
+    if(data.last_page===true || tasks.length<100) break;
     page++;
   }
   return all;
 }
 
-function selectTier(t, btn){
-  TIER=t;
-  document.querySelectorAll(".tier-btn").forEach(b=>b.classList.remove("active"));
-  btn.classList.add("active");
-  show("btn-fetch");
+// ═══════════════════════════════════════════════
+// ABAS
+// ═══════════════════════════════════════════════
+function switchTab(tab){
+  ["vozis","telefone"].forEach(t=>{
+    $(    "tab-"+t).classList.toggle("hidden", t!==tab);
+    $("tab-btn-"+t).className = "tab-btn "+(t===tab?"active":"inactive");
+  });
+  clearError();
 }
 
-async function runFetch(){
-  clearError(); hide("step-setup"); show("step-fetching");
+// ═══════════════════════════════════════════════
+// ABA VOZIS
+// ═══════════════════════════════════════════════
+let V = { tier:"", allTasks:[], statusMap:{}, selectedStatus:new Set(), exportRows:[] };
+
+function vSetProgress(label, sub, pct){
+  if(pct!=null) $("v-prog-fill").style.width=pct+"%";
+  $("v-prog-label").textContent=label;
+  $("v-prog-sub").textContent=sub||"";
+}
+
+// Tier buttons
+["AB","C","D","TODOS"].forEach(t=>{
+  $("v-tier-"+t).addEventListener("click", ()=>{
+    V.tier=t;
+    document.querySelectorAll(".tier-btn").forEach(b=>b.classList.remove("active"));
+    $("v-tier-"+t).classList.add("active");
+    show("v-btn-fetch");
+  });
+});
+
+$("v-btn-fetch").addEventListener("click", async ()=>{
+  clearError(); hide("v-setup"); show("v-fetching");
   try{
-    const tiersToFetch = TIER==="TODOS" ? ["AB","C","D"] : [TIER];
-    const allTasks = [];
-    for(let i=0; i<tiersToFetch.length; i++){
+    const tiersToFetch = V.tier==="TODOS" ? ["AB","C","D"] : [V.tier];
+    V.allTasks=[];
+    for(let i=0;i<tiersToFetch.length;i++){
       const t=tiersToFetch[i];
-      setProgress(5+(i/tiersToFetch.length)*85, `Buscando lista ${t}...`, "");
-      const tasks=await fetchAllTasks(LISTS[t], t);
-      allTasks.push(...tasks);
+      vSetProgress(`Buscando lista ${t}...`,"",5+(i/tiersToFetch.length)*85);
+      const tasks = await fetchAllTasksFromList(LISTS[t], t, (l,s)=>vSetProgress(l,s,null));
+      V.allTasks.push(...tasks);
     }
-
-    setProgress(95, "Consolidando devedores únicos...", "");
-
-    // Conta parcelas por devedor (nome normalizado como chave, mas guarda nome original)
-    const map = {};
-    for(const task of allTasks){
-      const nome = String(task.name||"").trim();
-      if(!nome) continue;
-      const key = nome.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
-      if(!map[key]){
-        map[key]={ nome_contato: nome, qtde: 0 };
-      }
-      map[key].qtde++;
+    // Monta mapa de status
+    V.statusMap={};
+    for(const t of V.allTasks){
+      const name=t.status?.status||"(sem status)";
+      if(!V.statusMap[name]) V.statusMap[name]={color:t.status?.color||"#6B7A94",count:0};
+      V.statusMap[name].count++;
     }
+    V.selectedStatus=new Set();
+    renderStatusGrid();
+    hide("v-fetching"); show("v-status");
+  }catch(ex){ showError("Erro: "+ex.message); hide("v-fetching"); show("v-setup"); }
+});
 
-    EXPORT_ROWS = Object.values(map)
-      .sort((a,b)=>b.qtde-a.qtde || a.nome_contato.localeCompare(b.nome_contato));
-
-    setProgress(100, "Concluído", "");
-
-    renderPreview();
-    hide("step-fetching"); show("step-preview");
-  }catch(ex){
-    showError("Erro: "+ex.message);
-    hide("step-fetching"); show("step-setup");
-  }
+function renderStatusGrid(){
+  const grid=$("v-status-grid"); grid.innerHTML="";
+  Object.entries(V.statusMap).sort((a,b)=>b[1].count-a[1].count).forEach(([name,info])=>{
+    const chip=document.createElement("div");
+    chip.className="status-chip"+(V.selectedStatus.has(name)?" selected":"");
+    chip.innerHTML=`<span class="dot" style="background:${info.color}"></span>${name}<span class="count">${info.count}</span>`;
+    chip.addEventListener("click",()=>{ V.selectedStatus.has(name)?V.selectedStatus.delete(name):V.selectedStatus.add(name); chip.classList.toggle("selected"); });
+    grid.appendChild(chip);
+  });
 }
+$("v-select-all").addEventListener("click",()=>{ Object.keys(V.statusMap).forEach(n=>V.selectedStatus.add(n)); renderStatusGrid(); });
+$("v-clear-all").addEventListener("click",()=>{ V.selectedStatus.clear(); renderStatusGrid(); });
+
+$("v-btn-apply").addEventListener("click",()=>{
+  if(!V.selectedStatus.size){ showError("Selecione ao menos um status."); return; }
+  clearError();
+  const filtered=V.allTasks.filter(t=>V.selectedStatus.has(t.status?.status||"(sem status)"));
+  const map={};
+  for(const task of filtered){
+    const nome=String(task.name||"").trim(); if(!nome) continue;
+    const credor  =String(task.custom_fields?.find(f=>f.id===CF_CREDOR)?.value||"").trim();
+    const telefone=String(task.custom_fields?.find(f=>f.id===CF_TELEFONE)?.value||"").trim();
+    const key=`${normNome(nome)}|${credor.toLowerCase()}`;
+    if(!map[key]) map[key]={nome_contato:nome,credor,telefone,qtde:0};
+    map[key].qtde++;
+    if(!map[key].telefone && telefone) map[key].telefone=telefone;
+  }
+  V.exportRows=Object.values(map).sort((a,b)=>a.nome_contato.localeCompare(b.nome_contato)||a.credor.localeCompare(b.credor));
+  renderPreview();
+  hide("v-status"); show("v-preview");
+});
 
 function renderPreview(){
-  const total = EXPORT_ROWS.length;
-  const totalParcelas = EXPORT_ROWS.reduce((s,r)=>s+r.qtde, 0);
-  const multi = EXPORT_ROWS.filter(r=>r.qtde>1).length;
-
-  document.getElementById("preview-stats").innerHTML=`
+  const total=V.exportRows.length;
+  const totalParc=V.exportRows.reduce((s,r)=>s+r.qtde,0);
+  const multi=V.exportRows.filter(r=>r.qtde>1).length;
+  $("v-stats").innerHTML=`
     <div class="stat-card"><div class="stat-val">${total}</div><div class="stat-label">Devedores únicos</div></div>
-    <div class="stat-card"><div class="stat-val" style="color:var(--muted)">${totalParcelas}</div><div class="stat-label">Total parcelas</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:var(--muted)">${totalParc}</div><div class="stat-label">Total parcelas</div></div>
     <div class="stat-card"><div class="stat-val" style="color:var(--accent)">${multi}</div><div class="stat-label">Com 2+ parcelas</div></div>`;
-
-  document.getElementById("preview-tbody").innerHTML = EXPORT_ROWS.map((r,i)=>`
+  $("v-tbody").innerHTML=V.exportRows.map((r,i)=>`
     <tr style="border-bottom:1px solid var(--border)">
       <td style="color:var(--faint)">${i+1}</td>
-      <td style="color:var(--text);max-width:260px">${r.nome_contato}</td>
+      <td style="color:var(--text);max-width:200px">${r.nome_contato}</td>
       <td style="color:var(--muted)">${primeiroNome(r.nome_contato)}</td>
-      <td style="color:var(--faint)">—</td>
-      <td>${r.qtde>1
-        ? `<span class="badge">${r.qtde}</span>`
-        : `<span style="color:var(--muted)">${r.qtde}</span>`}
-      </td>
+      <td style="color:var(--muted)">${r.telefone||"—"}</td>
+      <td style="color:var(--muted);max-width:160px">${r.credor||"—"}</td>
+      <td>${r.qtde>1?`<span class="badge">${r.qtde}</span>`:`<span style="color:var(--muted)">${r.qtde}</span>`}</td>
     </tr>`).join("");
 }
 
-function exportXLSX(){
-  const rows = EXPORT_ROWS.map(r=>({
-    nome_contato: r.nome_contato,
-    telefone: "",
-    primeiro_nome: primeiroNome(r.nome_contato),
-    qtde_parcelas: r.qtde,
-  }));
-  const ws = XLSX.utils.json_to_sheet(rows);
-  // largura das colunas
-  ws["!cols"]=[{wch:40},{wch:16},{wch:20},{wch:14}];
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Vozis");
-  const date = new Date().toISOString().slice(0,10);
-  XLSX.writeFile(wb, `vozis_${TIER.toLowerCase()}_${date}.xlsx`);
+$("v-btn-export").addEventListener("click",()=>{
+  const selectedStr=[...V.selectedStatus].join("+").replace(/\s+/g,"_").slice(0,30);
+  const rows=V.exportRows.map(r=>({ nome_contato:r.nome_contato, telefone:r.telefone||"", primeiro_nome:primeiroNome(r.nome_contato), credor:r.credor, qtde_parcelas:r.qtde }));
+  const ws=XLSX.utils.json_to_sheet(rows);
+  ws["!cols"]=[{wch:40},{wch:16},{wch:20},{wch:30},{wch:14}];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,"Vozis");
+  XLSX.writeFile(wb,`vozis_${V.tier.toLowerCase()}_${selectedStr}_${new Date().toISOString().slice(0,10)}.xlsx`);
+});
+
+$("v-btn-back").addEventListener("click",()=>{ hide("v-preview"); show("v-status"); });
+$("v-btn-reset").addEventListener("click",()=>{
+  V={tier:"",allTasks:[],statusMap:{},selectedStatus:new Set(),exportRows:[]};
+  clearError();
+  ["v-fetching","v-status","v-preview"].forEach(hide);
+  document.querySelectorAll(".tier-btn").forEach(b=>b.classList.remove("active"));
+  hide("v-btn-fetch"); $("v-prog-fill").style.width="0%";
+  show("v-setup");
+});
+
+// ═══════════════════════════════════════════════
+// ABA TELEFONES
+// ═══════════════════════════════════════════════
+let T = { rows:[] }; // [{nome, tel}]
+
+function tSetProgress(label, sub, pct){
+  if(pct!=null) $("t-prog-fill").style.width=pct+"%";
+  $("t-prog-label").textContent=label;
+  $("t-prog-sub").textContent=sub||"";
 }
 
-function reset(){
-  TIER=""; EXPORT_ROWS=[];
+$("t-dropzone").addEventListener("click",()=>$("t-file").click());
+$("t-dropzone").addEventListener("dragover",e=>e.preventDefault());
+$("t-dropzone").addEventListener("drop",e=>{ e.preventDefault(); const f=e.dataTransfer.files[0]; if(f) processTelFile(f); });
+$("t-file").addEventListener("change",e=>{ if(e.target.files[0]) processTelFile(e.target.files[0]); });
+
+function processTelFile(file){
   clearError();
-  hide("step-preview");
-  document.querySelectorAll(".tier-btn").forEach(b=>b.classList.remove("active"));
-  hide("btn-fetch");
-  document.getElementById("preview-tbody").innerHTML="";
-  document.getElementById("preview-stats").innerHTML="";
-  show("step-setup");
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const wb=XLSX.read(new Uint8Array(ev.target.result),{type:"array",cellDates:false,raw:true});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const raw=XLSX.utils.sheet_to_json(ws,{defval:""});
+      T.rows=raw.map(r=>{
+        const keys=Object.keys(r).map(k=>k.toLowerCase().trim());
+        const getCol=(...names)=>{ for(const n of names){ const k=Object.keys(r).find(k=>k.toLowerCase().trim()===n); if(k&&r[k]!="") return String(r[k]).trim(); } return ""; };
+        return { nome:getCol("nome_contato","nome"), tel:getCol("telefone","tel","phone") };
+      }).filter(r=>r.nome&&r.tel);
+      if(!T.rows.length){ showError("Nenhum registro válido. Verifique colunas 'nome_contato' e 'telefone'."); return; }
+      $("t-dropzone").classList.add("loaded");
+      $("t-drop-bar").classList.remove("hidden");
+      $("t-drop-icon").textContent="📋";
+      $("t-drop-label").style.color="var(--text)";
+      $("t-drop-label").textContent=`✓ ${T.rows.length} contatos carregados`;
+      $("t-drop-sub").textContent=`Ex: ${T.rows[0].nome} → ${T.rows[0].tel}`;
+      show("t-btn-run");
+    }catch(ex){ showError("Erro ao ler planilha: "+ex.message); }
+  };
+  reader.onerror=()=>showError("Falha ao carregar o arquivo.");
+  reader.readAsArrayBuffer(file);
 }
+
+$("t-btn-run").addEventListener("click", async ()=>{
+  clearError(); hide("t-setup"); show("t-fetching");
+  try{
+    // Busca todas as tasks das 3 listas
+    const allTasks=[];
+    const tierList=[["AB","901326680340"],["C","901326680111"],["D","901326670793"]];
+    for(let i=0;i<tierList.length;i++){
+      const [label,listId]=tierList[i];
+      tSetProgress(`Buscando lista ${label}...`,"",5+(i/3)*45);
+      const tasks=await fetchAllTasksFromList(listId, label, (l,s)=>tSetProgress(l,s,null));
+      allTasks.push(...tasks);
+    }
+
+    // Índice: nome_normalizado → [task_id, ...]
+    tSetProgress("Indexando tasks...","",55);
+    const idx={};
+    for(const task of allTasks){
+      const key=normNome(task.name);
+      if(!idx[key]) idx[key]=[];
+      idx[key].push(task.id);
+    }
+
+    // Atualiza cada task
+    const log=$("t-log"); log.innerHTML="";
+    let totalOk=0, totalErr=0, totalNaoEnc=0;
+
+    for(let i=0;i<T.rows.length;i++){
+      const {nome,tel}=T.rows[i];
+      tSetProgress(`Atualizando ${i+1}/${T.rows.length}...`,nome,55+(i/T.rows.length)*43);
+      const ids=idx[normNome(nome)]||[];
+      if(!ids.length){
+        totalNaoEnc++;
+        appendLog(log,"warn",nome,"Não encontrado no ClickUp");
+        continue;
+      }
+      for(const taskId of ids){
+        try{
+          await ckPut(taskId, CF_TELEFONE, formatTel(tel));
+          totalOk++;
+          appendLog(log,"ok",nome,`${formatTel(tel)} · task ${taskId}`);
+        }catch(ex){
+          totalErr++;
+          appendLog(log,"err",nome,`task ${taskId} — ${ex.message}`);
+        }
+      }
+    }
+
+    tSetProgress("Concluído","",100);
+    $("t-stats").innerHTML=`
+      <div class="stat-card" style="background:var(--successDim)"><div class="stat-val" style="color:var(--success)">${totalOk}</div><div class="stat-label">Atualizados</div></div>
+      ${totalNaoEnc?`<div class="stat-card"><div class="stat-val" style="color:var(--accent)">${totalNaoEnc}</div><div class="stat-label">Não encontrados</div></div>`:""}
+      ${totalErr?`<div class="stat-card" style="background:var(--dangerDim)"><div class="stat-val" style="color:var(--danger)">${totalErr}</div><div class="stat-label">Erros</div></div>`:""}`;
+    hide("t-fetching"); show("t-done");
+  }catch(ex){ showError("Erro: "+ex.message); hide("t-fetching"); show("t-setup"); }
+});
+
+function appendLog(container, type, nome, msg){
+  const div=document.createElement("div");
+  div.className=`result-row ${type==="ok"?"result-ok":type==="err"?"result-err":"result-warn"}`;
+  div.innerHTML=`
+    <span style="font-size:13px;color:${type==="ok"?"var(--success)":type==="err"?"var(--danger)":"var(--accent)"}">${type==="ok"?"✓":type==="err"?"✗":"—"}</span>
+    <span style="flex:1;font-size:11px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${nome}</span>
+    <span style="font-size:10px;color:${type==="ok"?"var(--success)":type==="err"?"var(--danger)":"var(--accent)"};white-space:nowrap">${msg}</span>`;
+  container.appendChild(div);
+  container.scrollTop=container.scrollHeight;
+}
+
+$("t-btn-reset").addEventListener("click",()=>{
+  T={rows:[]};
+  clearError();
+  ["t-fetching","t-done"].forEach(hide);
+  $("t-dropzone").classList.remove("loaded");
+  $("t-drop-bar").classList.add("hidden");
+  $("t-drop-icon").textContent="📂";
+  $("t-drop-label").style.color="var(--muted)";
+  $("t-drop-label").textContent="Arraste ou clique — .xlsx · .xls · .csv";
+  $("t-drop-sub").textContent="";
+  $("t-file").value="";
+  hide("t-btn-run");
+  $("t-log").innerHTML="";
+  $("t-stats").innerHTML="";
+  $("t-prog-fill").style.width="0%";
+  show("t-setup");
+});
+
+// ═══════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════
+document.addEventListener("DOMContentLoaded",()=>{
+  $("tab-btn-vozis").addEventListener("click",   ()=>switchTab("vozis"));
+  $("tab-btn-telefone").addEventListener("click", ()=>switchTab("telefone"));
+});
 </script>
 </body>
 </html>
