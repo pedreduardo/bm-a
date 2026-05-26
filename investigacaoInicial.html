@@ -359,7 +359,7 @@ function renderEscavadorResultados(dados) {
       (total > processos.length ? ' <span class="no-print" style="font-weight:400;color:#888">— <a href="'+urlPerfil+'" target="_blank" style="color:var(--bma-blue)">ver todos no Escavador</a></span>' : '') +
       '</div>';
     html += '<div class="proc-table-wrap"><table class="proc-table"><thead><tr>' +
-      '<th>Número CNJ</th><th>Tribunal</th><th>Ano</th><th>Área</th><th>Polo Ativo</th><th>Polo Passivo</th>' +
+      '<th>Número CNJ</th><th>Tribunal</th><th>Ano</th><th>Área</th><th>Valor da Causa</th><th>Polo Ativo</th><th>Polo Passivo</th>' +
       '</tr></thead><tbody>';
     processos.forEach(p => {
       const fonte   = (p.fontes||[])[0]||{};
@@ -367,6 +367,7 @@ function renderEscavadorResultados(dados) {
       const area    = (fonte.capa&&fonte.capa.area)||'—';
       const num     = p.numero_cnj||'—';
       const ano     = p.ano_inicio||'—';
+      const valor   = (fonte.capa&&fonte.capa.valor_causa&&fonte.capa.valor_causa.valor_formatado)||'—';
       const ativo   = p.titulo_polo_ativo||'—';
       const passivo = p.titulo_polo_passivo||'—';
       const url     = fonte.url||'';
@@ -374,6 +375,7 @@ function renderEscavadorResultados(dados) {
         '<td>'+(url?'<a href="'+url+'" target="_blank">'+num+'</a>':num)+'</td>' +
         '<td>'+sigla+'</td><td>'+ano+'</td>' +
         '<td><span class="area-tag">'+area+'</span></td>' +
+        '<td style="font-size:11px;white-space:nowrap">'+valor+'</td>' +
         '<td style="font-size:11px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+ativo+'">'+ativo+'</td>' +
         '<td style="font-size:11px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+passivo+'">'+passivo+'</td>' +
         '</tr>';
