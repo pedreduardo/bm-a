@@ -58,8 +58,6 @@
 
   .link-btn { display: inline-flex; align-items: center; gap: 5px; padding: 6px 14px; border: 1px solid #ddd; border-radius: 6px; font-size: 12px; color: #000; text-decoration: none; background: #f5f5f2; cursor: pointer; margin: 3px; font-family: 'Cambria', serif; }
   .link-btn:hover { background: #e8e8e5; }
-  .link-btn.green { background: var(--bma-green); color: #fff; border-color: var(--bma-green); font-weight: 700; }
-  .link-btn.green:hover { background: #009058; }
   .link-btn.amber { background: var(--bma-amber); color: #fff; border-color: var(--bma-amber); font-weight: 700; }
   .link-btn.amber:hover { background: #e09020; }
   .link-btn.dark { background: var(--bma-dark); color: #fff; border-color: var(--bma-dark); font-weight: 700; }
@@ -154,27 +152,22 @@
   </div>
 
   <div id="resultado" style="display:none;">
-
     <div class="section">
       <div class="section-header">1. DADOS CADASTRAIS — RECEITA FEDERAL <div class="status-dot pending" id="dot-cadastral"></div></div>
       <div class="section-body empty" id="body-cadastral">Aguardando consulta...</div>
     </div>
-
     <div class="section">
       <div class="section-header">2. ENDEREÇO CADASTRAL <div class="status-dot pending" id="dot-endereco"></div></div>
       <div class="section-body empty" id="body-endereco">Aguardando consulta...</div>
     </div>
-
     <div class="section">
       <div class="section-header">3. QUADRO SOCIETÁRIO <div class="status-dot pending" id="dot-societario"></div></div>
       <div class="section-body empty" id="body-societario">Aguardando consulta...</div>
     </div>
-
     <div class="section">
       <div class="section-header">4. MAPEAMENTO PROCESSUAL — ESCAVADOR <div class="status-dot pending" id="dot-escavador"></div></div>
       <div class="section-body empty" id="body-escavador">Aguardando consulta...</div>
     </div>
-
   </div>
 
   <div class="footer-note">
@@ -301,7 +294,7 @@ function renderEscavadorInicial(cnpjLimpo, cnpjFmt) {
   return '<div class="custo-box">' +
     '<strong>⚖️ Consulta Processual — Escavador</strong>' +
     '<p>A consulta retorna os processos aqui no painel e <strong>consome créditos</strong> ' +
-    '(até 3 créditos para ~300 processos). Um PDF será gerado automaticamente ao concluir.</p>' +
+    '(até 3 créditos para ~150 processos). Um PDF será gerado automaticamente ao concluir.</p>' +
     '<div class="custo-btns">' +
     '<button class="link-btn amber" onclick="confirmarApiEscavador()">⚡ Buscar processos via API</button>' +
     '</div></div>';
@@ -382,13 +375,15 @@ async function confirmarApiEscavador() {
   try {
     const cnpjFmt   = escCnpjFmtAtual;
     const cnpjLimpo = escCnpjAtual;
-    let processos = [], tribunais = {}, poloAtivo = 0, poloPassivo = 0, total = 0, cursor = null, paginas = 0;
+    let processos = [], tribunais = {}, poloAtivo = 0, poloPassivo = 0, total = 0, paginas = 0;
     const MAX_PAGINAS = 3;
 
+    // Primeira URL — construída manualmente
+    // Páginas seguintes — URL completa do links.next (já contém cursor + li + todos os params)
+    let proximaUrl = ESC_BASE + '/envolvido/processos?cpf_cnpj=' + encodeURIComponent(cnpjFmt) + '&limit=50';
+
     do {
-      let url = ESC_BASE + '/envolvido/processos?cpf_cnpj=' + encodeURIComponent(cnpjFmt) + '&limit=50';
-      if (cursor) url += '&cursor=' + encodeURIComponent(cursor);
-      const r = await fetch(url, { headers: ESC_H, signal: AbortSignal.timeout(30000) });
+      const r = await fetch(proximaUrl, { headers: ESC_H, signal: AbortSignal.timeout(30000) });
       if (!r.ok) { const err = await r.json(); throw new Error((err.message||'HTTP '+r.status)); }
       const data = await r.json();
 
@@ -412,9 +407,10 @@ async function confirmarApiEscavador() {
         });
       });
 
-      cursor = (data.links&&data.links.next) ? new URL(data.links.next).searchParams.get('cursor') : null;
+      // Usar a URL completa do next — ela já tem cursor, li e tudo mais
+      proximaUrl = (data.links && data.links.next) ? data.links.next : null;
       paginas++;
-    } while (cursor && paginas < MAX_PAGINAS);
+    } while (proximaUrl && paginas < MAX_PAGINAS);
 
     setDot('escavador', 'ok');
     setBody('escavador', renderEscavadorResultados({ total, poloAtivo, poloPassivo, tribunais, processos, cnpjFmt }), false);
