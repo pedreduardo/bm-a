@@ -65,7 +65,6 @@
   .link-btn.dark { background: var(--bma-dark); color: #fff; border-color: var(--bma-dark); font-weight: 700; }
   .link-btn.dark:hover { background: #0d3a33; }
 
-  /* Mapa */
   .map-wrap { position: relative; margin-top: 10px; }
   .map-frame { width: 100%; height: 220px; border: none; border-radius: 8px; }
   .map-actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
@@ -80,7 +79,6 @@
   .alert-warn  { background: #fff4e0; border-left: 3px solid var(--bma-amber); padding: 9px 13px; border-radius: 0 6px 6px 0; font-size: 12px; color: #7a4a0a; margin: 8px 0; line-height: 1.5; }
   .alert-error { background: #fde8ee; border-left: 3px solid var(--bma-red);   padding: 9px 13px; border-radius: 0 6px 6px 0; font-size: 12px; color: #8a1530; margin: 8px 0; }
 
-  /* Escavador */
   .proc-summary { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
   .proc-card { background: #f5f5f2; border-radius: 8px; padding: 12px 18px; text-align: center; border: 1px solid #eee; min-width: 110px; }
   .proc-num   { font-size: 28px; font-weight: 700; color: var(--bma-dark); }
@@ -111,11 +109,9 @@
   .footer-note { font-size: 11px; color: #777; text-align: center; margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #ddd; font-style: italic; line-height: 1.6; }
   .confidencial { font-size: 10px; font-weight: 700; letter-spacing: 1px; color: var(--bma-red); text-align: right; margin-bottom: 4px; }
 
-  /* Toast */
   .toast { position: fixed; bottom: 24px; right: 24px; background: var(--bma-dark); color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 13px; font-family: 'Cambria', serif; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 9999; }
   .toast.show { opacity: 1; }
 
-  /* ——— CSS DE IMPRESSÃO / PDF ——— */
   @media print {
     body { background: #fff !important; }
     .toolbar, .btn-pdf, .search-row, .btn-primary,
@@ -197,7 +193,6 @@ const ESC_H    = { 'Authorization': 'Bearer ' + ESCAVADOR_TOKEN, 'Accept': 'appl
 let escCnpjAtual = '', escCnpjFmtAtual = '', escRazaoAtual = '';
 let enderecoQueryAtual = '';
 
-// ——— Toast ———
 function showToast(msg, duracao = 2500) {
   const t = document.getElementById('toast');
   t.textContent = msg;
@@ -205,13 +200,11 @@ function showToast(msg, duracao = 2500) {
   setTimeout(() => t.classList.remove('show'), duracao);
 }
 
-// ——— PDF ———
 function exportarPDF() {
   document.title = 'BMA_Investigacao_' + (escCnpjFmtAtual || 'consulta');
   window.print();
 }
 
-// ——— Utilitários ———
 function formatCNPJ(v) {
   v = v.replace(/\D/g,'').slice(0,14);
   v = v.replace(/^(\d{2})(\d)/,'$1.$2');
@@ -239,11 +232,9 @@ function getTag(sit){
   return '<span class="tag tag-default">'+(sit||'—')+'</span>';
 }
 
-// ——— Copiar link do mapa ———
 function copiarLinkMapa() {
   const url = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(enderecoQueryAtual);
   navigator.clipboard.writeText(url).then(() => showToast('✓ Link do mapa copiado!')).catch(() => {
-    // Fallback para browsers sem clipboard API
     const el = document.createElement('textarea');
     el.value = url;
     document.body.appendChild(el);
@@ -254,11 +245,6 @@ function copiarLinkMapa() {
   });
 }
 
-function abrirMapsNova() {
-  window.open('https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(enderecoQueryAtual), '_blank');
-}
-
-// ——— Renders ———
 function renderCadastral(d){
   const rows=[
     ['Razão Social', d.razao_social||d.nome||'—'],
@@ -291,7 +277,6 @@ function renderEndereco(d){
     '<div class="map-actions no-print">'+
     '<a class="link-btn" href="'+mapsLink+'" target="_blank">📍 Abrir no Google Maps</a>'+
     '<button class="link-btn" onclick="copiarLinkMapa()">📋 Copiar link do mapa</button>'+
-    
     '</div>'+
     '<div class="print-header">Endereço: <a href="'+mapsLink+'">'+mapsLink+'</a></div>'+
     '</div>';
@@ -312,13 +297,10 @@ function renderSocietario(qsa){
   }).join('');
 }
 
-// ——— Escavador ———
 function renderEscavadorInicial(cnpjLimpo, cnpjFmt) {
-  const urlPerfil = 'https://www.escavador.com/sobre/' + encodeURIComponent(cnpjFmt);
   return '<div class="custo-box">' +
     '<strong>⚖️ Consulta Processual — Escavador</strong>' +
-    '<p>A consulta gratuita abre o perfil no site do Escavador sem consumir créditos da API.<br>' +
-    'A consulta via API retorna os processos aqui no painel e <strong>consome créditos</strong> ' +
+    '<p>A consulta retorna os processos aqui no painel e <strong>consome créditos</strong> ' +
     '(até 3 créditos para ~300 processos). Um PDF será gerado automaticamente ao concluir.</p>' +
     '<div class="custo-btns">' +
     '<button class="link-btn amber" onclick="confirmarApiEscavador()">⚡ Buscar processos via API</button>' +
@@ -383,7 +365,6 @@ function renderEscavadorResultados(dados) {
     html += '</tbody></table></div>';
   }
 
-  // Botão exportar PDF nos resultados (aparece também aqui)
   html += '<hr class="divider-line">';
   html += '<div class="no-print" style="display:flex;gap:8px;flex-wrap:wrap">' +
     '<a class="link-btn" href="'+urlPerfil+'" target="_blank">🔗 Ver perfil completo no Escavador</a>' +
@@ -401,13 +382,12 @@ async function confirmarApiEscavador() {
   try {
     const cnpjFmt   = escCnpjFmtAtual;
     const cnpjLimpo = escCnpjAtual;
-    let processos = [], tribunais = {}, poloAtivo = 0, poloPassivo = 0, total = 0, cursor = null, li = null, paginas = 0;
+    let processos = [], tribunais = {}, poloAtivo = 0, poloPassivo = 0, total = 0, cursor = null, paginas = 0;
     const MAX_PAGINAS = 3;
 
     do {
       let url = ESC_BASE + '/envolvido/processos?cpf_cnpj=' + encodeURIComponent(cnpjFmt) + '&limit=50';
       if (cursor) url += '&cursor=' + encodeURIComponent(cursor);
-      if (li)     url += '&li='     + encodeURIComponent(li);
       const r = await fetch(url, { headers: ESC_H, signal: AbortSignal.timeout(30000) });
       if (!r.ok) { const err = await r.json(); throw new Error((err.message||'HTTP '+r.status)); }
       const data = await r.json();
@@ -432,21 +412,13 @@ async function confirmarApiEscavador() {
         });
       });
 
-      if (data.links && data.links.next) {
-        const nextUrl = new URL(data.links.next);
-        cursor = nextUrl.searchParams.get('cursor');
-        li     = nextUrl.searchParams.get('li');
-      } else {
-        cursor = null;
-        li     = null;
-      }
+      cursor = (data.links&&data.links.next) ? new URL(data.links.next).searchParams.get('cursor') : null;
       paginas++;
     } while (cursor && paginas < MAX_PAGINAS);
 
     setDot('escavador', 'ok');
     setBody('escavador', renderEscavadorResultados({ total, poloAtivo, poloPassivo, tribunais, processos, cnpjFmt }), false);
 
-    // PDF automático após concluir
     setTimeout(() => {
       showToast('✓ Consulta concluída — abrindo PDF...', 2000);
       setTimeout(() => exportarPDF(), 2200);
@@ -461,7 +433,6 @@ async function confirmarApiEscavador() {
   }
 }
 
-// ——— Orquestração principal ———
 async function iniciarBusca() {
   const cnpj      = document.getElementById('cnpj-input').value.trim();
   const cnpjLimpo = cnpj.replace(/\D/g,'');
