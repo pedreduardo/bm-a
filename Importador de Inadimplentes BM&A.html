@@ -234,11 +234,11 @@ async function fetchAllTasks(listId, label){
     );
     // include_closed=true traz status "closed"
     // orderby=created evita duplicatas entre páginas
-    const url=`/list/${listId}/task?page=${page}&include_closed=true&subtasks=false&order_by=created`;
+    const url=`/list/${listId}/task?page=${page}&subtasks=false&order_by=created`;
     const data=await ckFetch(url);
     const tasks=data.tasks||[];
     if(!tasks.length) break;
-    all.push(...tasks);
+    all.push(...tasks.filter(t=>t.status?.type==="open"||t.status?.type==="custom"));
     if(data.last_page===true||tasks.length<100) break;
     page++;
   }
